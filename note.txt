@@ -1,0 +1,61 @@
+Estructure cipc_rad
+cipc_rad/
+│
+├── src/
+│   ├── config/
+│   │   └── settings.py   
+│   │
+│   ├── download/
+│   ├── processing/
+│   └── viewer/
+│
+├── config/
+│   └── colormaps.json
+│
+├── .env
+└── requirements.txt
+
+~/cipc_data/
+│
+└── L2/
+    └── {produto}/
+        └── {ano}/
+
+~/cipc_output/
+│
+├── figures/
+│   └── {produto}/
+│       └── {ano}/
+│
+├── gif/
+└── mp4/
+
+
+
+- Set of directories from application (.env Central Module)
+from config.settings import DATA_DIR, OUTPUT_DIR, LOG_DIR
+
+Example:
+from config.settings import DATA_DIR
+
+input_path = DATA_DIR / "L2" / "2026" / "CO"
+
+- Execute scripts from project root:
+cd cipc_rad
+python src/processing/run_daily_plots.py ...
+
+- Logs:
+from config.logging_config import logger
+
+
+- Add __init__.py for convert in module
+
+touch src/__init__.py
+touch src/config/__init__.py
+touch src/download/__init__.py
+touch src/processing/__init__.py
+touch src/viewer/__init__.py
+
+- Execute this way
+
+(env_cipc_rad) jurandir@DESKTOP071300:~/cipc_rad$ python3 -m src.download.download_product AER_AI 2023-10-10 2023-10-11

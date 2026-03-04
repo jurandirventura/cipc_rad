@@ -1,0 +1,20 @@
+# Ambiente
+.env
+.venv/
+__pycache__/
+*.pyc
+
+# Conda
+env/
+*.egg-info/
+
+# VSCode
+.vscode/
+
+# Dados externos
+../cipc_data/
+../cipc_output/
+../cipc_logs/
+
+# Sistema
+.DS_Store
