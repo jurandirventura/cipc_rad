@@ -1,0 +1,92 @@
+{
+  "aerosol_index_335_367": {
+    "type": "continuous",
+    "vmin": -1.0,
+    "vmax": 5.0,
+    "colors": [
+      "#00007F",
+      "#0000FF",
+      "#00FFFF",
+      "#00FF00",
+      "#FFFF00",
+      "#FF7F00",
+      "#FF0000"
+    ]
+  },
+
+  "aerosol_index_340_380": {
+    "type": "continuous",
+    "vmin": -1.0,
+    "vmax": 5.0,
+    "colors": [
+      "#00007F",
+      "#0000FF",
+      "#00FFFF",
+      "#00FF00",
+      "#FFFF00",
+      "#FF7F00",
+      "#FF0000"
+    ]
+  },
+
+  "aerosol_index_354_388": {
+    "type": "continuous",
+    "vmin": -1.0,
+    "vmax": 5.0,
+    "colors": [
+      "#00007F",
+      "#0000FF",
+      "#00FFFF",
+      "#00FF00",
+      "#FFFF00",
+      "#FF7F00",
+      "#FF0000"
+    ]
+  },  
+
+"carbonmonoxide_total_column": {
+  "type": "continuous",
+  "vmin": 0.0,
+  "vmax": 0.1,
+  "ticks": [0.0, 0.0125, 0.0375, 0.0625, 0.0875, 0.1],
+  "colors": [
+    "#00007F",
+    "#0000FF",
+    "#00FFFF",
+    "#00FF00",
+    "#FFFF00",
+    "#FF0000",
+    "#7F0000"
+  ]
+},
+  "nitrogendioxide_tropospheric_column": {
+  "type": "continuous",
+  "vmin": 0.0,
+  "vmax": 1.0E-4,
+  "ticks": [0.0, 1.25E-5, 3.75E-5, 6.25E-5, 8.75E-5, 1.0E-4],
+  "colors": [
+    "#00007F",
+    "#0000FF",
+    "#00FFFF",
+    "#00FF00",
+    "#FFFF00",
+    "#FF0000",
+    "#7F0000"
+  ]
+},
+
+  "AI": {
+    "type": "continuous",
+    "vmin": -1.0,
+    "vmax": 5.0,
+    "colors": [
+      "#00007F",
+      "#0000FF",
+      "#00FFFF",
+      "#00FF00",
+      "#FFFF00",
+      "#FF7F00",
+      "#FF0000"
+    ]
+  }
+}

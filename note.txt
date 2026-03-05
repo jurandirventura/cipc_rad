@@ -31,6 +31,8 @@ cipc_rad/
 └── mp4/
 
 
+conda activate env_cipc_rad
+
 
 - Set of directories from application (.env Central Module)
 from config.settings import DATA_DIR, OUTPUT_DIR, LOG_DIR

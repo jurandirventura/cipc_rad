@@ -27,6 +27,16 @@ dependencies:
   - tk=8.6.13=noxft_h366c992_103
   - tzdata=2025c=hc9c84f9_1
   - zstd=1.5.7=hb78ec9c_6
-  - pip:
-      - setuptools==82.0.0
+  - python=3.14
+  - xarray
+  - netcdf4
+  - h5netcdf
+  - h5py
+  - matplotlib
+  - cartopy
+  - numpy
+  - tqdm
+  - imageio  
+- pip:
+  - setuptools==82.0.0
 prefix: /home/jurandir/miniforge3/envs/env_cipc_rad
