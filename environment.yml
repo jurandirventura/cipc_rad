@@ -37,6 +37,7 @@ dependencies:
   - numpy
   - tqdm
   - imageio  
+  - ffmpeg
 - pip:
   - setuptools==82.0.0
 prefix: /home/jurandir/miniforge3/envs/env_cipc_rad

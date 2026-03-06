@@ -50,6 +50,12 @@ ext = sys.argv[8].lower().replace(".", "")
 if ext not in ["png", "jpeg"]:
     raise ValueError("Extensão deve ser png ou jpeg")
 
+FPS = 2
+if len(sys.argv) == 10:
+    FPS = float(sys.argv[9])
+
+
+
 
 #EXT = sys.argv[8].lower()
 # EXT = sys.argv[8].lower().replace(".", "")
