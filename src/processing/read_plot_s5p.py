@@ -20,6 +20,9 @@ from matplotlib.colors import Normalize
 from src.processing.colormap_loader import load_colormap
 from src.config.settings import OUTPUT_DIR
 
+from osgeo import gdal
+
+import subprocess
 
 # =========================
 # ARGUMENTOS
@@ -95,9 +98,16 @@ for d in groups:
 # DIRETÓRIO DE SAÍDA
 # =========================
 
-output_dir = OUTPUT_DIR / "figures" / VAR_PRODUCT
-os.makedirs(output_dir, exist_ok=True)
+figures_dir = OUTPUT_DIR / "figures" / VAR_PRODUCT
+geotiff_dir = OUTPUT_DIR / "geotiff" / VAR_PRODUCT
+cog_dir = OUTPUT_DIR / "cog" / VAR_PRODUCT
+tiles_dir = OUTPUT_DIR / "tiles" / VAR_PRODUCT
 
+
+os.makedirs(figures_dir, exist_ok=True)
+os.makedirs(geotiff_dir, exist_ok=True)
+os.makedirs(cog_dir, exist_ok=True)
+os.makedirs(tiles_dir, exist_ok=True)
 
 # =========================
 # COLORMAP
@@ -141,8 +151,17 @@ for date_part, day_files in groups.items():
     # diretório por ano
     # -------------------------
 
-    year_dir = output_dir / year
-    os.makedirs(year_dir, exist_ok=True)
+    year_fig_dir = figures_dir / year
+    year_tif_dir = geotiff_dir / year
+    year_cog_dir = cog_dir / year
+    date_tiles_dir = tiles_dir / year / date_part
+    
+    os.makedirs(year_fig_dir, exist_ok=True)
+    os.makedirs(year_tif_dir, exist_ok=True)
+    os.makedirs(year_cog_dir, exist_ok=True)
+    os.makedirs(date_tiles_dir, exist_ok=True)
+
+
 
     fig = plt.figure(figsize=(12, 8))
 
@@ -287,9 +306,136 @@ for date_part, day_files in groups.items():
 
     output_name = f"{VAR_PRODUCT}_{date_part}_overlay.{EXT}"
 
-    output_path = year_dir / output_name
+    output_path = year_fig_dir / output_name
 
     plt.savefig(output_path, dpi=300, bbox_inches="tight")
+
+
+    # =========================
+    # GERAR GEOTIFF
+    # =========================
+
+    tif_name = f"{VAR_PRODUCT}_{date_part}_overlay.tif"
+    tif_path = year_tif_dir / tif_name
+
+    xmin, xmax = lon.min(), lon.max()
+    ymin, ymax = lat.min(), lat.max()
+
+    nrows, ncols = data.shape
+
+    xres = (xmax - xmin) / float(ncols)
+    yres = (ymax - ymin) / float(nrows)
+
+    driver = gdal.GetDriverByName("GTiff")
+
+    dataset = driver.Create(
+        str(tif_path),
+        ncols,
+        nrows,
+        1,
+        gdal.GDT_Float32
+    )
+
+    dataset.SetGeoTransform((xmin, xres, 0, ymax, 0, -yres))
+
+    srs = gdal.osr.SpatialReference()
+    srs.ImportFromEPSG(4326)
+
+    dataset.SetProjection(srs.ExportToWkt())
+
+    band = dataset.GetRasterBand(1)
+    band.WriteArray(data)
+
+    #band.SetNoDataValue(np.nan)
+    band.SetNoDataValue(-9999)
+
+    dataset.FlushCache()
+    dataset = None
+
+    print("[OK] GeoTIFF salvo:")
+    print(tif_path)
+
+
+    # =========================
+    # GERAR COG
+    # =========================
+
+    cog_name = f"{VAR_PRODUCT}_{date_part}_overlay_cog.tif"
+    cog_path = year_cog_dir / cog_name
+
+    gdal.Translate(
+        str(cog_path),
+        str(tif_path),
+        format="COG",
+        creationOptions=[
+            "COMPRESS=DEFLATE",
+            "LEVEL=9"
+        ]
+    )
+
+    print("[OK] COG salvo:")
+    print(cog_path)
+
+
+    # =========================
+    # GERAR TILES XYZ
+    # =========================
+
+    print("[INFO] Preparando raster 8-bit para tiles...")
+
+    # vrt_path = year_cog_dir / f"{VAR_PRODUCT}_{date_part}_tiles.vrt"
+
+    # # converter para 8-bit
+    # subprocess.run([
+    #     "gdal_translate",
+    #     "-of", "VRT",
+    #     "-ot", "Byte",
+    #     "-scale",
+    #     str(cog_path),
+    #     str(vrt_path)
+    # ], check=True)
+
+    vrt_path = year_cog_dir / f"{VAR_PRODUCT}_{date_part}_tiles.vrt"
+
+    subprocess.run([
+        "gdal_translate",
+        "-of", "VRT",
+        "-ot", "Byte",
+        "-scale",
+        "-a_nodata", "0",
+        str(cog_path),
+        str(vrt_path)
+    ], check=True)
+
+
+    print("[INFO] Gerando tiles...")
+
+    
+    # Jurandir - Caso o de baixo funcione bem, pode remover este.
+    # cmd = [
+    #     "gdal2tiles.py",
+    #     "-z", "0-6",
+    #     "-w", "none",
+    #     str(vrt_path),
+    #     str(date_tiles_dir)
+    # ]
+
+    cmd = [
+        "gdal2tiles.py",
+        "--processes=4",
+        "-z", "0-6",
+        "-w", "none",
+        str(vrt_path),
+        str(date_tiles_dir)
+    ]
+
+
+    subprocess.run(cmd, check=True)
+
+    print("[OK] Tiles gerados em:")
+    print(date_tiles_dir)
+
+
 
     print("\n[OK] Imagem salva em:")
     print(output_path)
@@ -300,187 +446,7 @@ for date_part, day_files in groups.items():
 
 
 
-
-# for date_part, day_files in groups.items():
-
-#     print("\nProcessando data:", date_part)
-
-#     fig = plt.figure(figsize=(12, 8))
-
-#     ax = plt.axes(projection=ccrs.PlateCarree())
-#     ax.set_extent([-85, -30, -60, 15], crs=ccrs.PlateCarree())
-
-#     last_mesh = None
-
-#     for FILE in day_files:
-
-#         print("Lendo:", FILE)
-
-#         try:
-
-#             ds = xr.open_dataset(
-#                 FILE,
-#                 group=GROUP,
-#                 engine="netcdf4",
-#                 decode_cf=False
-#             )
-
-#         except Exception as e:
-
-#             print("Erro abrindo", FILE)
-#             print(e)
-#             continue
-
-
-#         var = ds[VAR_PRODUCT][0]
-#         lat = ds["latitude"][0]
-#         lon = ds["longitude"][0]
-
-#         data = var.astype(float).values
-#         lat = lat.values
-#         lon = lon.values
-
-
-#         # =========================
-#         # FILL VALUE
-#         # =========================
-
-#         fill_value = var.attrs.get("_FillValue")
-
-#         if fill_value is not None:
-#             data[data == fill_value] = np.nan
-
-
-#         # =========================
-#         # QA FILTER
-#         # =========================
-
-#         if "qa_value" in ds.variables:
-
-#             qa = ds["qa_value"][0].values
-#             data[qa < 0.75] = np.nan
-
-
-#         # =========================
-#         # FILTRO
-#         # =========================
-
-#         data[(data < -1) | (data > 5)] = np.nan
-
-#         if np.all(np.isnan(data)):
-
-#             print("Sem dados válidos.")
-#             ds.close()
-#             continue
-
-
-#         # =========================
-#         # NORMALIZE
-#         # =========================
-
-#         if norm is None:
-
-#             vmin = np.nanmin(data)
-#             vmax = np.nanmax(data)
-
-#             norm = Normalize(vmin=vmin, vmax=vmax)
-
-
-#         # =========================
-#         # PLOT
-#         # =========================
-
-#         last_mesh = ax.pcolormesh(
-#             lon,
-#             lat,
-#             data,
-#             cmap=cmap,
-#             norm=norm,
-#             shading="auto",
-#             transform=ccrs.PlateCarree()
-#         )
-
-#         ds.close()
-
-
-#     if last_mesh is None:
-#         print("Sem dados válidos para", date_part)
-#         continue
-
-
-#     # =========================
-#     # COLORBAR
-#     # =========================
-
-#     cbar = plt.colorbar(last_mesh, ax=ax, orientation="vertical", pad=0.02)
-#     cbar.set_label(LABEL)
-
-#     if ticks is not None:
-#         cbar.set_ticks(ticks)
-#     else:
-#         cbar.set_ticks(np.linspace(vmin, vmax, 6))
-
-
-#     # =========================
-#     # MAPA
-#     # =========================
-
-#     ax.coastlines(resolution="10m")
-#     ax.add_feature(cfeature.BORDERS, linewidth=0.6)
-#     ax.add_feature(cfeature.LAND, facecolor="lightgray")
-
-#     states = NaturalEarthFeature(
-#         category="cultural",
-#         name="admin_1_states_provinces_lines",
-#         scale="10m",
-#         facecolor="none"
-#     )
-
-#     ax.add_feature(states, edgecolor="black", linewidth=0.4)
-
-
-#     plt.title(f"{TITLE} {date_part}")
-
-
-#     # =========================
-#     # SALVAR
-#     # =========================
-
-#     output_name = f"{VAR_PRODUCT}_{date_part}_overlay.{EXT}"
-
-#     output_path = output_dir / output_name
-
-#     plt.savefig(output_path, dpi=300, bbox_inches="tight")
-
-#     print("\n[OK] Imagem salva em:")
-#     print(output_path)
-
-#     plt.close()
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-# antes da atualização do agrupamento das imagens. Parece que estava agrupando errado.
+# Versão até 11mar2026 (sem geotiff)
 # import sys
 # import os
 # import re
@@ -544,6 +510,33 @@ for date_part, day_files in groups.items():
 
 
 # # =========================
+# # AGRUPAR POR DATA
+# # =========================
+
+# groups = {}
+
+# for f in FILES:
+
+#     name = os.path.basename(f)
+
+#     m = re.search(r'_(\d{8})T', name)
+
+#     if m:
+#         date = m.group(1)
+#     else:
+#         date = "unknown"
+
+#     if date not in groups:
+#         groups[date] = []
+
+#     groups[date].append(f)
+
+# print("\nDatas encontradas:")
+# for d in groups:
+#     print(d, len(groups[d]), "arquivos")
+
+
+# # =========================
 # # DIRETÓRIO DE SAÍDA
 # # =========================
 
@@ -552,11 +545,13 @@ for date_part, day_files in groups.items():
 
 
 # # =========================
-# # COLORMAP (carrega 1 vez)
+# # COLORMAP
 # # =========================
 
 # try:
+
 #     cmap, norm, vmin, vmax, ticks = load_colormap(VAR_PRODUCT)
+
 #     print(f"Colormap carregado para {VAR_PRODUCT}")
 
 # except Exception:
@@ -571,586 +566,181 @@ for date_part, day_files in groups.items():
 
 
 # # =========================
-# # FIGURA
+# # LOOP POR DATA
 # # =========================
 
-# fig = plt.figure(figsize=(12, 8))
+# for date_part, day_files in groups.items():
 
-# ax = plt.axes(projection=ccrs.PlateCarree())
-# ax.set_extent([-85, -30, -60, 15], crs=ccrs.PlateCarree())
+#     print("\nProcessando data:", date_part)
 
-# last_mesh = None
+#     # -------------------------
+#     # extrair ano
+#     # -------------------------
+
+#     if date_part != "unknown":
+#         year = date_part[:4]
+#     else:
+#         year = "unknown"
+
+#     # -------------------------
+#     # diretório por ano
+#     # -------------------------
+
+#     year_dir = output_dir / year
+#     os.makedirs(year_dir, exist_ok=True)
+
+#     fig = plt.figure(figsize=(12, 8))
+
+#     ax = plt.axes(projection=ccrs.PlateCarree())
+#     ax.set_extent([-85, -30, -60, 15], crs=ccrs.PlateCarree())
+
+#     last_mesh = None
+
+#     for FILE in day_files:
+
+#         print("Lendo:", FILE)
+
+#         try:
+
+#             ds = xr.open_dataset(
+#                 FILE,
+#                 group=GROUP,
+#                 engine="netcdf4",
+#                 decode_cf=False
+#             )
+
+#         except Exception as e:
+
+#             print("Erro abrindo", FILE)
+#             print(e)
+#             continue
 
 
-# # =========================
-# # LOOP DOS ARQUIVOS
-# # =========================
+#         var = ds[VAR_PRODUCT][0]
+#         lat = ds["latitude"][0]
+#         lon = ds["longitude"][0]
 
-# for FILE in FILES:
+#         data = var.astype(float).values
+#         lat = lat.values
+#         lon = lon.values
 
-#     print(f"Lendo: {FILE}")
 
-#     try:
+#         # =========================
+#         # FILL VALUE
+#         # =========================
 
-#         ds = xr.open_dataset(
-#             FILE,
-#             group=GROUP,
-#             engine="netcdf4",
-#             decode_cf=False
+#         fill_value = var.attrs.get("_FillValue")
+
+#         if fill_value is not None:
+#             data[data == fill_value] = np.nan
+
+
+#         # =========================
+#         # QA FILTER
+#         # =========================
+
+#         if "qa_value" in ds.variables:
+
+#             qa = ds["qa_value"][0].values
+#             data[qa < 0.75] = np.nan
+
+
+#         # =========================
+#         # FILTRO
+#         # =========================
+
+#         ###data[(data < -1) | (data > 5)] = np.nan
+
+#         if np.all(np.isnan(data)):
+
+#             print("Sem dados válidos.")
+#             ds.close()
+#             continue
+
+
+#         # =========================
+#         # NORMALIZE
+#         # =========================
+
+#         if norm is None:
+
+#             vmin = np.nanmin(data)
+#             vmax = np.nanmax(data)
+
+#             norm = Normalize(vmin=vmin, vmax=vmax)
+
+
+#         # =========================
+#         # PLOT
+#         # =========================
+
+#         last_mesh = ax.pcolormesh(
+#             lon,
+#             lat,
+#             data,
+#             cmap=cmap,
+#             norm=norm,
+#             shading="auto",
+#             transform=ccrs.PlateCarree()
 #         )
 
-#     except Exception as e:
-
-#         print(f"Erro abrindo {FILE}")
-#         print(e)
-#         continue
-
-
-#     var = ds[VAR_PRODUCT][0]
-#     lat = ds["latitude"][0]
-#     lon = ds["longitude"][0]
-
-#     data = var.astype(float).values
-#     lat = lat.values
-#     lon = lon.values
-
-
-#     # =========================
-#     # FILL VALUE
-#     # =========================
-
-#     fill_value = var.attrs.get("_FillValue")
-
-#     if fill_value is not None:
-#         data[data == fill_value] = np.nan
-
-
-#     # =========================
-#     # QA FILTER
-#     # =========================
-
-#     if "qa_value" in ds.variables:
-
-#         qa = ds["qa_value"][0].values
-#         data[qa < 0.75] = np.nan
-
-
-#     # =========================
-#     # FILTRO
-#     # =========================
-
-#     # data[(data < -1) | (data > 0.5)] = np.nan
-#     data[(data < -1) | (data > 5)] = np.nan
-
-#     if np.all(np.isnan(data)):
-
-#         print("Sem dados válidos.")
 #         ds.close()
+
+
+#     if last_mesh is None:
+#         print("Sem dados válidos para", date_part)
+#         plt.close()
 #         continue
 
 
 #     # =========================
-#     # NORMALIZE (fallback)
+#     # COLORBAR
 #     # =========================
 
-#     if norm is None:
+#     cbar = plt.colorbar(last_mesh, ax=ax, orientation="vertical", pad=0.02)
+#     cbar.set_label(LABEL)
 
-#         vmin = np.nanmin(data)
-#         vmax = np.nanmax(data)
-
-#         norm = Normalize(vmin=vmin, vmax=vmax)
-
-
-#     # =========================
-#     # PLOT
-#     # =========================
-
-#     last_mesh = ax.pcolormesh(
-#         lon,
-#         lat,
-#         data,
-#         cmap=cmap,
-#         norm=norm,
-#         shading="auto",
-#         transform=ccrs.PlateCarree()
-#     )
-
-#     ds.close()
-
-
-# # =========================
-# # COLORBAR
-# # =========================
-
-# cbar = plt.colorbar(last_mesh, ax=ax, orientation="vertical", pad=0.02)
-# cbar.set_label(LABEL)
-
-# if ticks is not None:
-#     cbar.set_ticks(ticks)
-# else:
-#     cbar.set_ticks(np.linspace(vmin, vmax, 6))
-
-
-# # =========================
-# # MAPA
-# # =========================
-
-# ax.coastlines(resolution="10m")
-# ax.add_feature(cfeature.BORDERS, linewidth=0.6)
-# ax.add_feature(cfeature.LAND, facecolor="lightgray")
-
-# states = NaturalEarthFeature(
-#     category="cultural",
-#     name="admin_1_states_provinces_lines",
-#     scale="10m",
-#     facecolor="none"
-# )
-
-# ax.add_feature(states, edgecolor="black", linewidth=0.4)
-
-# plt.title(TITLE)
-
-
-# # =========================
-# # DATA
-# # =========================
-
-# filename = os.path.basename(FILES[0])
-
-# match = re.search(r'(\d{8}T\d{6})', filename)
-
-# if match:
-
-#     datetime_str = match.group(1)
-#     date_part = datetime_str[:8]
-#     time_part = datetime_str[9:]
-
-# else:
-
-#     date_part = "composite"
-#     time_part = ""
-
-
-# # =========================
-# # SALVAR
-# # =========================
-
-# output_name = f"{VAR_PRODUCT}_{date_part}_{time_part}_overlay.{EXT}"
-
-# output_path = output_dir / output_name
-
-# plt.savefig(output_path, dpi=300, bbox_inches="tight")
-
-# print("\n[OK] Imagem salva em:")
-# print(output_path)
-
-# plt.close()
-
-
-
-
-# import sys
-# import os
-# import re
-# import glob
-
-# import xarray as xr
-# import numpy as np
-# import matplotlib.pyplot as plt
-
-# import cartopy.crs as ccrs
-# import cartopy.feature as cfeature
-# from cartopy.feature import NaturalEarthFeature
-
-# from matplotlib.colors import Normalize
-
-# # imports do projeto
-# from src.processing.colormap_loader import load_colormap
-# from src.config.settings import OUTPUT_DIR
-
-# # =========================
-# # PARÂMETROS
-# # =========================
-
-# if len(sys.argv) < 7:
-#     print("\nUso:")
-#     print("python read_plot_S5p.py FILE1 [FILE2 ... ou máscara*] GROUP VAR_PRODUCT TITLE LABEL EXT(png|jpeg)\n")
-#     sys.exit(1)
-
-# GROUP = sys.argv[-5]
-# VAR_PRODUCT = sys.argv[-4]
-# TITLE = sys.argv[-3]
-# LABEL = sys.argv[-2]
-# EXT = sys.argv[-1].lower().replace(".", "")
-# INPUTS = sys.argv[1:-5]
-
-# if EXT not in ["png", "jpeg", "jpg"]:
-#     print("Extensão deve ser png ou jpeg")
-#     sys.exit(1)
-
-# # =========================
-# # EXPANDIR MÁSCARAS
-# # =========================
-
-# FILES = []
-# for item in INPUTS:
-#     expanded = glob.glob(item)
-#     if expanded:
-#         FILES.extend(expanded)
+#     if ticks is not None:
+#         cbar.set_ticks(ticks)
 #     else:
-#         print(f"Aviso: {item} não encontrou arquivos.")
+#         cbar.set_ticks(np.linspace(vmin, vmax, 6))
 
-# FILES = sorted(list(set(FILES)))
-
-# if len(FILES) == 0:
-#     print("Nenhum arquivo encontrado.")
-#     sys.exit(1)
-
-# print(f"{len(FILES)} arquivo(s) encontrado(s).")
-
-# # =========================
-# # DIRETÓRIO DE SAÍDA
-# # =========================
-
-# output_dir = OUTPUT_DIR / "figures" / VAR_PRODUCT
-# os.makedirs(output_dir, exist_ok=True)
-
-# # =========================
-# # PLOT
-# # =========================
-
-# fig = plt.figure(figsize=(12, 8))
-# ax = plt.axes(projection=ccrs.PlateCarree())
-# ax.set_extent([-85, -30, -60, 15], crs=ccrs.PlateCarree())
-
-# last_mesh = None
-
-# for FILE in FILES:
-
-#     print(f"Lendo arquivo: {FILE}")
-
-#     ### remover ds = xr.open_dataset(FILE, group=GROUP)
-#     ds = xr.open_dataset(FILE, group=GROUP, engine="netcdf4")
-
-#     var = ds[VAR_PRODUCT][0, :, :]
-#     lat = ds["latitude"][0, :, :]
-#     lon = ds["longitude"][0, :, :]
-
-#     data = var.values.astype(float)
-#     lat = lat.values
-#     lon = lon.values
 
 #     # =========================
-#     # REMOVER FILLVALUE
+#     # MAPA
 #     # =========================
 
-#     fill_value = var.attrs.get("_FillValue")
+#     ax.coastlines(resolution="10m")
+#     ax.add_feature(cfeature.BORDERS, linewidth=0.6)
+#     ax.add_feature(cfeature.LAND, facecolor="lightgray")
 
-#     if fill_value is not None:
-#         data[data == fill_value] = np.nan
-
-#     # =========================
-#     # APLICAR QA VALUE
-#     # =========================
-
-#     if "qa_value" in ds.variables:
-
-#         qa = ds["qa_value"][0, :, :].values
-
-#         # threshold recomendado Sentinel-5P
-#         data[qa < 0.75] = np.nan
-
-#     # =========================
-#     # FILTRO DE VALORES
-#     # =========================
-
-#     data[(data < -1) | (data > 0.5)] = np.nan
-
-#     if np.all(np.isnan(data)):
-#         print("Arquivo sem valores válidos, pulando...")
-#         ds.close()
-#         continue
-
-#     # =========================
-#     # COLORMAP
-#     # =========================
-
-#     try:
-#         cmap, norm, vmin, vmax, ticks = load_colormap(VAR_PRODUCT)
-#         print(f"Colormap carregado para {VAR_PRODUCT}")
-
-#     except Exception:
-
-#         print(f"Aviso: colormap não encontrado para {VAR_PRODUCT}")
-#         print("Usando escala padrão matplotlib...")
-
-#         vmin = np.nanmin(data)
-#         vmax = np.nanmax(data)
-
-#         cmap = plt.cm.viridis
-#         norm = Normalize(vmin=vmin, vmax=vmax)
-#         ticks = None
-
-#     last_mesh = ax.pcolormesh(
-#         lon,
-#         lat,
-#         data,
-#         cmap=cmap,
-#         norm=norm,
-#         shading="auto",
-#         transform=ccrs.PlateCarree()
+#     states = NaturalEarthFeature(
+#         category="cultural",
+#         name="admin_1_states_provinces_lines",
+#         scale="10m",
+#         facecolor="none"
 #     )
 
-#     ds.close()
+#     ax.add_feature(states, edgecolor="black", linewidth=0.4)
 
-# # =========================
-# # COLORBAR
-# # =========================
+#     plt.title(f"{TITLE} {date_part}")
 
-# cbar = plt.colorbar(last_mesh, ax=ax, orientation="vertical", pad=0.02)
-# cbar.set_label(LABEL)
-
-# if ticks is not None:
-#     cbar.set_ticks(ticks)
-# else:
-#     cbar.set_ticks(np.linspace(vmin, vmax, 6))
-
-# # =========================
-# # MAPA
-# # =========================
-
-# ax.coastlines(resolution='10m')
-# ax.add_feature(cfeature.BORDERS, linewidth=0.6)
-# ax.add_feature(cfeature.LAND, facecolor="lightgray")
-
-# states = NaturalEarthFeature(
-#     category='cultural',
-#     name='admin_1_states_provinces_lines',
-#     scale='10m',
-#     facecolor='none'
-# )
-
-# ax.add_feature(states, edgecolor='black', linewidth=0.4)
-
-# plt.title(TITLE)
-
-# # =========================
-# # DATA DO PRIMEIRO ARQUIVO
-# # =========================
-
-# filename = os.path.basename(FILES[0])
-
-# match = re.search(r'(\d{8}T\d{6})', filename)
-
-# if match:
-
-#     datetime_str = match.group(1)
-#     date_part = datetime_str[:8]
-#     time_part = datetime_str[9:]
-
-# else:
-
-#     date_part = "composite"
-#     time_part = ""
-
-# output_name = f"{VAR_PRODUCT}_{date_part}_{time_part}_overlay.{EXT}"
-
-# output_path = output_dir / output_name
-
-# plt.savefig(output_path, dpi=300, bbox_inches="tight")
-
-# print(f"[OK] Imagem salva em:")
-# print(output_path)
-
-# plt.close()
-
-
-
-
-
-
-# # Com qa_value mas plotando apneas valores maiores que -1 
-# # Inclui também as subdivisões de mapa para Estados...
-
-# import sys
-# import os
-# import re
-# import glob
-# import xarray as xr
-# import numpy as np
-# import matplotlib.pyplot as plt
-# import cartopy.crs as ccrs
-# import cartopy.feature as cfeature
-# import cartopy.io.shapereader as shpreader
-# from cartopy.feature import NaturalEarthFeature
-
-# from matplotlib.colors import ListedColormap, BoundaryNorm
-# from matplotlib.colors import LinearSegmentedColormap, Normalize
-# from matplotlib.colors import Normalize
-
-# from colormap_loader import load_colormap
-
-# # =========================
-# # PARÂMETROS
-# # =========================
-
-# if len(sys.argv) < 7:
-#     print("\nUso:")
-#     print("python read_plot_S5p.py FILE1 [FILE2 ... ou máscara*] GROUP VAR_PRODUCT TITLE LABEL EXT(png|jpeg)\n")
-#     sys.exit(1)
-
-# GROUP = sys.argv[-5]
-# VAR_PRODUCT = sys.argv[-4]
-# TITLE = sys.argv[-3]
-# LABEL = sys.argv[-2]
-# EXT = sys.argv[-1].lower()
-# INPUTS = sys.argv[1:-5]
-
-# if EXT not in ["png", "jpeg", "jpg"]:
-#     print("Extensão deve ser png ou jpeg")
-#     sys.exit(1)
-
-# # =========================
-# # EXPANDIR MÁSCARAS
-# # =========================
-
-# FILES = []
-# for item in INPUTS:
-#     expanded = glob.glob(item)
-#     if expanded:
-#         FILES.extend(expanded)
-#     else:
-#         print(f"Aviso: {item} não encontrou arquivos.")
-
-# FILES = sorted(list(set(FILES)))
-
-# if len(FILES) == 0:
-#     print("Nenhum arquivo encontrado.")
-#     sys.exit(1)
-
-# print(f"{len(FILES)} arquivo(s) encontrado(s).")
-
-# # =========================
-# # PLOT
-# # =========================
-
-# fig = plt.figure(figsize=(12, 8))
-# ax = plt.axes(projection=ccrs.PlateCarree())
-# ax.set_extent([-85, -30, -60, 15], crs=ccrs.PlateCarree())
-
-# last_mesh = None
-
-# for FILE in FILES:
-
-#     print(f"Lendo arquivo: {FILE}")
-#     ds = xr.open_dataset(FILE, group=GROUP)
-
-#     var = ds[VAR_PRODUCT][0, :, :]
-#     lat = ds["latitude"][0, :, :]
-#     lon = ds["longitude"][0, :, :]
-
-#     data = var.values.astype(float)
-#     lat = lat.values
-#     lon = lon.values
 
 #     # =========================
-#     # REMOVER FILLVALUE
+#     # SALVAR
 #     # =========================
-#     fill_value = var.attrs.get("_FillValue")
 
-#     if fill_value is not None:
-#         data[data == fill_value] = np.nan
+#     output_name = f"{VAR_PRODUCT}_{date_part}_overlay.{EXT}"
 
-#     # =========================
-#     # APLICAR QA VALUE
-#     # =========================
-#     if "qa_value" in ds.variables:
-#         qa = ds["qa_value"][0, :, :].values
-        
-#        # Descomentar a linha para considerar qa_value < 0.75 (threshold)
-#        data[qa < 0.75] = np.nan
+#     output_path = year_dir / output_name
 
-#     # =========================
-#     # MANTER APENAS VALORES > 0 ou descartar valores abaixo de 0 e acima de 0.5
-#     # =========================
-#     data[(data < -1) | (data > 0.5)] = np.nan
+#     plt.savefig(output_path, dpi=300, bbox_inches="tight")
 
-#     # Se todo o arquivo for inválido, pula
-#     if np.all(np.isnan(data)):
-#         print("Arquivo sem valores positivos válidos, pulando...")
-#         ds.close()
-#         continue        
+#     print("\n[OK] Imagem salva em:")
+#     print(output_path)
 
-#     # UTILIZANDO ESCALA DE CORES INDEPENDENTE COM ARQUIVOS JSON
-#     try:
-#         cmap, norm, vmin, vmax, ticks = load_colormap(VAR_PRODUCT)
-#         print(f"Colormap carregado para {VAR_PRODUCT}")
-#     except Exception:
-#         print(f"Aviso: colormap não encontrado para {VAR_PRODUCT}")
-#         print("Usando escala padrão matplotlib...")
-#         vmin = np.nanmin(data)
-#         vmax = np.nanmax(data)
-#         cmap = plt.cm.viridis
-#         norm = Normalize(vmin=vmin, vmax=vmax)
-#         ticks = None   # ← ESSENCIAL
+#     plt.close()
 
 
-#     last_mesh = ax.pcolormesh(
-#         lon,
-#         lat,
-#         data,
-#         cmap=cmap,
-#         norm=norm,
-#         shading="auto",
-#         transform=ccrs.PlateCarree()
-#     )
-
-#     ds.close()
 
 
-# ### Inserido fora do laço porque estava gerando barra de cores igual ao número de arquivos
-# ### Se tem 4 arquivos, gera 4 barras
-# cbar = plt.colorbar(last_mesh, ax=ax, orientation="vertical", pad=0.02)
-# cbar.set_label(LABEL)
-
-# if ticks is not None:
-#     cbar.set_ticks(ticks)
-# else:
-#     cbar.set_ticks(np.linspace(vmin, vmax, 6))
-
-# ax.coastlines(resolution='10m')
-# ax.add_feature(cfeature.BORDERS, linewidth=0.6)
-# ax.add_feature(cfeature.LAND, facecolor="lightgray")
-
-# # Estados / províncias (admin level 1)
-# states = NaturalEarthFeature(
-#     category='cultural',
-#     name='admin_1_states_provinces_lines',
-#     scale='10m',
-#     facecolor='none'
-# )
-
-# ax.add_feature(states, edgecolor='black', linewidth=0.4)
-
-# plt.title(TITLE)
-
-# # =========================
-# # DATA DO PRIMEIRO ARQUIVO
-# # =========================
-
-# filename = os.path.basename(FILES[0])
-# match = re.search(r'(\d{8}T\d{6})', filename)
-
-# if match:
-#     datetime_str = match.group(1)
-#     date_part = datetime_str[:8]
-#     time_part = datetime_str[9:]
-# else:
-#     date_part = "composite"
-#     time_part = ""
-
-# output_name = f"{VAR_PRODUCT}_{date_part}_{time_part}_overlay.{EXT}"
-# plt.savefig(output_name, dpi=300, bbox_inches="tight")
-
-# print(f"[OK] Imagem salva como: {output_name}")
-# plt.close()
