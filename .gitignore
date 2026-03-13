@@ -15,6 +15,7 @@ env/
 ../cipc_data/
 ../cipc_output/
 ../cipc_logs/
+log
 
 # Sistema
 .DS_Store

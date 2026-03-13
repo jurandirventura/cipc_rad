@@ -22,7 +22,7 @@ from src.config.settings import OUTPUT_DIR
 # ==========================================
 
 MAX_WORKERS = 4
-LOG_DIR = "log"
+LOG_DIR = "../cipc_log"
 
 os.makedirs(LOG_DIR, exist_ok=True)
 

@@ -2,6 +2,7 @@
 # Inclui também as subdivisões de mapa para Estados...
 
 
+
 import sys
 import os
 import re
@@ -23,6 +24,9 @@ from src.config.settings import OUTPUT_DIR
 from osgeo import gdal
 
 import subprocess
+
+from scipy.interpolate import griddata
+from scipy.spatial import cKDTree
 
 # =========================
 # ARGUMENTOS
@@ -129,12 +133,15 @@ except Exception:
     vmin = None
     vmax = None
 
-
 # =========================
 # LOOP POR DATA
 # =========================
 
 for date_part, day_files in groups.items():
+
+    all_lon = []
+    all_lat = []
+    all_values = []    
 
     print("\nProcessando data:", date_part)
 
@@ -171,6 +178,8 @@ for date_part, day_files in groups.items():
     last_mesh = None
 
     for FILE in day_files:
+
+
 
         print("Lendo:", FILE)
 
@@ -219,6 +228,47 @@ for date_part, day_files in groups.items():
             data[qa < 0.75] = np.nan
 
 
+        # # =========================
+        # # INTERPOLAR PARA GRADE REGULAR
+        # # =========================
+
+        # valid = ~np.isnan(data)
+
+        # points = np.column_stack((lon[valid], lat[valid]))
+        # values = data[valid]
+
+        # grid_lon = np.linspace(-85, -30, 800)
+        # grid_lat = np.linspace(-60, 15, 800)
+
+        # grid_lon2, grid_lat2 = np.meshgrid(grid_lon, grid_lat)
+
+        # # grid_data = griddata(
+        # #     points,
+        # #     values,
+        # #     (grid_lon2, grid_lat2),
+        # #     method="linear"
+        # # )
+
+        # grid_linear = griddata(points, values, (grid_lon2, grid_lat2), method="linear")
+
+        # grid_nearest = griddata(points, values, (grid_lon2, grid_lat2), method="nearest")
+
+        # grid_data = np.where(np.isnan(grid_linear), grid_nearest, grid_linear)
+
+
+
+
+        # data = grid_data
+        # lon = grid_lon2
+        # lat = grid_lat2
+
+        valid = ~np.isnan(data)
+
+        all_lon.append(lon[valid])
+        all_lat.append(lat[valid])
+        all_values.append(data[valid])
+
+
         # =========================
         # FILTRO
         # =========================
@@ -244,21 +294,139 @@ for date_part, day_files in groups.items():
             norm = Normalize(vmin=vmin, vmax=vmax)
 
 
-        # =========================
-        # PLOT
-        # =========================
+        # # =========================
+        # # PLOT
+        # # =========================
 
-        last_mesh = ax.pcolormesh(
-            lon,
-            lat,
-            data,
-            cmap=cmap,
-            norm=norm,
-            shading="auto",
-            transform=ccrs.PlateCarree()
-        )
+        # last_mesh = ax.pcolormesh(
+        #     lon,
+        #     lat,
+        #     data,
+        #     cmap=cmap,
+        #     norm=norm,
+        #     shading="auto",
+        #     transform=ccrs.PlateCarree()
+        # )
 
         ds.close()
+
+    if len(all_values) == 0 or all(len(v) == 0 for v in all_values):        
+        print("Sem dados válidos.")
+        continue
+
+    # =========================
+    # GRID LEVEL-3 BINNING
+    # =========================
+
+    lon_all = np.concatenate(all_lon)
+    lat_all = np.concatenate(all_lat)
+    values_all = np.concatenate(all_values)
+
+    # resolução da grade
+    res = 0.05   # ~5 km
+
+    lon_min = -85
+    lon_max = -30
+    lat_min = -60
+    lat_max = 15
+
+    lon_bins = np.arange(lon_min, lon_max + res, res)
+    lat_bins = np.arange(lat_min, lat_max + res, res)
+
+    # índices das células
+    lon_idx = np.digitize(lon_all, lon_bins) - 1
+    lat_idx = np.digitize(lat_all, lat_bins) - 1
+
+    grid_sum = np.zeros((len(lat_bins), len(lon_bins)))
+    grid_count = np.zeros((len(lat_bins), len(lon_bins)))
+
+    for i in range(len(values_all)):
+
+        x = lon_idx[i]
+        y = lat_idx[i]
+
+        if 0 <= x < len(lon_bins) and 0 <= y < len(lat_bins):
+
+            grid_sum[y, x] += values_all[i]
+            grid_count[y, x] += 1
+
+    # média
+    # grid_data = np.divide(
+    #     grid_sum,
+    #     grid_count,
+    #     where=grid_count > 0
+    # )
+
+    grid_data = np.zeros_like(grid_sum)
+
+    np.divide(
+        grid_sum,
+        grid_count,
+        out=grid_data,
+        where=grid_count > 0
+    )
+
+    grid_data[grid_count == 0] = np.nan
+
+
+    # grid_data[grid_count == 0] = np.nan
+
+    lon2, lat2 = np.meshgrid(lon_bins, lat_bins)
+
+    data = grid_data
+    lon = lon2
+    lat = lat2
+
+
+
+
+
+
+
+
+
+
+    # lon_all = np.concatenate(all_lon)
+    # lat_all = np.concatenate(all_lat)
+    # values_all = np.concatenate(all_values)
+
+    # points = np.column_stack((lon_all, lat_all))
+
+    # grid_lon = np.linspace(-85, -30, 600)
+    # grid_lat = np.linspace(-60, 15, 600)
+
+    # grid_lon2, grid_lat2 = np.meshgrid(grid_lon, grid_lat)
+
+
+    # tree = cKDTree(points)
+
+    # dist, _ = tree.query(
+    #     np.column_stack((grid_lon2.ravel(), grid_lat2.ravel())),
+    #     k=1
+    # )
+
+    # dist = dist.reshape(grid_lon2.shape)
+
+    # grid_data = griddata(points, values_all, (grid_lon2, grid_lat2), method="linear")
+
+    # #max_dist = 1.5  # graus (~150 km)
+    # max_dist = 0.5
+
+    # grid_data[dist > max_dist] = np.nan
+
+    # data = grid_data
+    # lon = grid_lon2
+    # lat = grid_lat2
+
+    last_mesh = ax.pcolormesh(
+        lon,
+        lat,
+        data,
+        cmap=cmap,
+        norm=norm,
+        shading="auto",
+        transform=ccrs.PlateCarree()
+    )
 
 
     if last_mesh is None:
@@ -318,13 +486,15 @@ for date_part, day_files in groups.items():
     tif_name = f"{VAR_PRODUCT}_{date_part}_overlay.tif"
     tif_path = year_tif_dir / tif_name
 
-    xmin, xmax = lon.min(), lon.max()
-    ymin, ymax = lat.min(), lat.max()
+    xmin = -85
+    xmax = -30
+    ymin = -60
+    ymax = 15
 
     nrows, ncols = data.shape
 
-    xres = (xmax - xmin) / float(ncols)
-    yres = (ymax - ymin) / float(nrows)
+    xres = (xmax - xmin) / (ncols - 1)
+    yres = (ymax - ymin) / (nrows - 1)
 
     driver = gdal.GetDriverByName("GTiff")
 
@@ -344,7 +514,15 @@ for date_part, day_files in groups.items():
     dataset.SetProjection(srs.ExportToWkt())
 
     band = dataset.GetRasterBand(1)
-    band.WriteArray(data)
+
+    data_out = np.flipud(data)
+    data_out[np.isnan(data_out)] = -9999
+
+    band.WriteArray(data_out)
+    band.SetNoDataValue(-9999)
+
+    # data_out = np.flipud(data)
+    # band.WriteArray(data_out)
 
     #band.SetNoDataValue(np.nan)
     band.SetNoDataValue(-9999)
@@ -383,18 +561,6 @@ for date_part, day_files in groups.items():
 
     print("[INFO] Preparando raster 8-bit para tiles...")
 
-    # vrt_path = year_cog_dir / f"{VAR_PRODUCT}_{date_part}_tiles.vrt"
-
-    # # converter para 8-bit
-    # subprocess.run([
-    #     "gdal_translate",
-    #     "-of", "VRT",
-    #     "-ot", "Byte",
-    #     "-scale",
-    #     str(cog_path),
-    #     str(vrt_path)
-    # ], check=True)
-
     vrt_path = year_cog_dir / f"{VAR_PRODUCT}_{date_part}_tiles.vrt"
 
     subprocess.run([
@@ -409,16 +575,6 @@ for date_part, day_files in groups.items():
 
 
     print("[INFO] Gerando tiles...")
-
-    
-    # Jurandir - Caso o de baixo funcione bem, pode remover este.
-    # cmd = [
-    #     "gdal2tiles.py",
-    #     "-z", "0-6",
-    #     "-w", "none",
-    #     str(vrt_path),
-    #     str(date_tiles_dir)
-    # ]
 
     cmd = [
         "gdal2tiles.py",
@@ -441,305 +597,6 @@ for date_part, day_files in groups.items():
     print(output_path)
 
     plt.close()
-
-
-
-
-
-# Versão até 11mar2026 (sem geotiff)
-# import sys
-# import os
-# import re
-# import glob
-
-# import xarray as xr
-# import numpy as np
-# import matplotlib.pyplot as plt
-
-# import cartopy.crs as ccrs
-# import cartopy.feature as cfeature
-# from cartopy.feature import NaturalEarthFeature
-
-# from matplotlib.colors import Normalize
-
-# from src.processing.colormap_loader import load_colormap
-# from src.config.settings import OUTPUT_DIR
-
-
-# # =========================
-# # ARGUMENTOS
-# # =========================
-
-# if len(sys.argv) < 7:
-#     print("\nUso:")
-#     print("python read_plot_S5p.py FILE1 [FILE2 ... ou máscara*] GROUP VAR_PRODUCT TITLE LABEL EXT(png|jpeg)\n")
-#     sys.exit(1)
-
-# GROUP = sys.argv[-5]
-# VAR_PRODUCT = sys.argv[-4]
-# TITLE = sys.argv[-3]
-# LABEL = sys.argv[-2]
-# EXT = sys.argv[-1].lower().replace(".", "")
-# INPUTS = sys.argv[1:-5]
-
-# if EXT not in ["png", "jpeg", "jpg"]:
-#     print("Extensão deve ser png ou jpeg")
-#     sys.exit(1)
-
-
-# # =========================
-# # EXPANDIR MÁSCARAS
-# # =========================
-
-# FILES = []
-
-# for item in INPUTS:
-#     expanded = glob.glob(item)
-#     if expanded:
-#         FILES.extend(expanded)
-#     else:
-#         print(f"Aviso: {item} não encontrou arquivos.")
-
-# FILES = sorted(list(set(FILES)))
-
-# if len(FILES) == 0:
-#     print("Nenhum arquivo encontrado.")
-#     sys.exit(1)
-
-# print(f"{len(FILES)} arquivo(s) encontrado(s).")
-
-
-# # =========================
-# # AGRUPAR POR DATA
-# # =========================
-
-# groups = {}
-
-# for f in FILES:
-
-#     name = os.path.basename(f)
-
-#     m = re.search(r'_(\d{8})T', name)
-
-#     if m:
-#         date = m.group(1)
-#     else:
-#         date = "unknown"
-
-#     if date not in groups:
-#         groups[date] = []
-
-#     groups[date].append(f)
-
-# print("\nDatas encontradas:")
-# for d in groups:
-#     print(d, len(groups[d]), "arquivos")
-
-
-# # =========================
-# # DIRETÓRIO DE SAÍDA
-# # =========================
-
-# output_dir = OUTPUT_DIR / "figures" / VAR_PRODUCT
-# os.makedirs(output_dir, exist_ok=True)
-
-
-# # =========================
-# # COLORMAP
-# # =========================
-
-# try:
-
-#     cmap, norm, vmin, vmax, ticks = load_colormap(VAR_PRODUCT)
-
-#     print(f"Colormap carregado para {VAR_PRODUCT}")
-
-# except Exception:
-
-#     print("Colormap não encontrado, usando padrão matplotlib")
-
-#     cmap = plt.cm.viridis
-#     norm = None
-#     ticks = None
-#     vmin = None
-#     vmax = None
-
-
-# # =========================
-# # LOOP POR DATA
-# # =========================
-
-# for date_part, day_files in groups.items():
-
-#     print("\nProcessando data:", date_part)
-
-#     # -------------------------
-#     # extrair ano
-#     # -------------------------
-
-#     if date_part != "unknown":
-#         year = date_part[:4]
-#     else:
-#         year = "unknown"
-
-#     # -------------------------
-#     # diretório por ano
-#     # -------------------------
-
-#     year_dir = output_dir / year
-#     os.makedirs(year_dir, exist_ok=True)
-
-#     fig = plt.figure(figsize=(12, 8))
-
-#     ax = plt.axes(projection=ccrs.PlateCarree())
-#     ax.set_extent([-85, -30, -60, 15], crs=ccrs.PlateCarree())
-
-#     last_mesh = None
-
-#     for FILE in day_files:
-
-#         print("Lendo:", FILE)
-
-#         try:
-
-#             ds = xr.open_dataset(
-#                 FILE,
-#                 group=GROUP,
-#                 engine="netcdf4",
-#                 decode_cf=False
-#             )
-
-#         except Exception as e:
-
-#             print("Erro abrindo", FILE)
-#             print(e)
-#             continue
-
-
-#         var = ds[VAR_PRODUCT][0]
-#         lat = ds["latitude"][0]
-#         lon = ds["longitude"][0]
-
-#         data = var.astype(float).values
-#         lat = lat.values
-#         lon = lon.values
-
-
-#         # =========================
-#         # FILL VALUE
-#         # =========================
-
-#         fill_value = var.attrs.get("_FillValue")
-
-#         if fill_value is not None:
-#             data[data == fill_value] = np.nan
-
-
-#         # =========================
-#         # QA FILTER
-#         # =========================
-
-#         if "qa_value" in ds.variables:
-
-#             qa = ds["qa_value"][0].values
-#             data[qa < 0.75] = np.nan
-
-
-#         # =========================
-#         # FILTRO
-#         # =========================
-
-#         ###data[(data < -1) | (data > 5)] = np.nan
-
-#         if np.all(np.isnan(data)):
-
-#             print("Sem dados válidos.")
-#             ds.close()
-#             continue
-
-
-#         # =========================
-#         # NORMALIZE
-#         # =========================
-
-#         if norm is None:
-
-#             vmin = np.nanmin(data)
-#             vmax = np.nanmax(data)
-
-#             norm = Normalize(vmin=vmin, vmax=vmax)
-
-
-#         # =========================
-#         # PLOT
-#         # =========================
-
-#         last_mesh = ax.pcolormesh(
-#             lon,
-#             lat,
-#             data,
-#             cmap=cmap,
-#             norm=norm,
-#             shading="auto",
-#             transform=ccrs.PlateCarree()
-#         )
-
-#         ds.close()
-
-
-#     if last_mesh is None:
-#         print("Sem dados válidos para", date_part)
-#         plt.close()
-#         continue
-
-
-#     # =========================
-#     # COLORBAR
-#     # =========================
-
-#     cbar = plt.colorbar(last_mesh, ax=ax, orientation="vertical", pad=0.02)
-#     cbar.set_label(LABEL)
-
-#     if ticks is not None:
-#         cbar.set_ticks(ticks)
-#     else:
-#         cbar.set_ticks(np.linspace(vmin, vmax, 6))
-
-
-#     # =========================
-#     # MAPA
-#     # =========================
-
-#     ax.coastlines(resolution="10m")
-#     ax.add_feature(cfeature.BORDERS, linewidth=0.6)
-#     ax.add_feature(cfeature.LAND, facecolor="lightgray")
-
-#     states = NaturalEarthFeature(
-#         category="cultural",
-#         name="admin_1_states_provinces_lines",
-#         scale="10m",
-#         facecolor="none"
-#     )
-
-#     ax.add_feature(states, edgecolor="black", linewidth=0.4)
-
-#     plt.title(f"{TITLE} {date_part}")
-
-
-#     # =========================
-#     # SALVAR
-#     # =========================
-
-#     output_name = f"{VAR_PRODUCT}_{date_part}_overlay.{EXT}"
-
-#     output_path = year_dir / output_name
-
-#     plt.savefig(output_path, dpi=300, bbox_inches="tight")
-
-#     print("\n[OK] Imagem salva em:")
-#     print(output_path)
-
-#     plt.close()
 
 
 
