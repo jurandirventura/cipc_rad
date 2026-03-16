@@ -1,137 +1,179 @@
 {
-  "aerosol_index_335_367": {
-    "type": "continuous",
-    "vmin": -1.0,
-    "vmax": 5.0,
-    "nodata": -9999,
-    "colors": [
-      "#00007F",
-      "#0000FF",
-      "#00FFFF",
-      "#00FF00",
-      "#FFFF00",
-      "#FF7F00",
-      "#FF0000"
-    ]
-  },
+"aerosol_index_335_367": {
+"title": "UV Aerosol Index (335–367 nm)",
+"short_name": "UVAI",
+"description": "Absorbing Aerosol Index derived from UV radiances at 335 and 367 nm. Indicates the presence of UV-absorbing aerosols such as dust, smoke and volcanic ash.",
+"source": "Sentinel-5P TROPOMI",
+"type": "continuous",
+"unit": "AI",
+"valid_range": [-5, 10],
+"vmin": -1.0,
+"vmax": 5.0,
+"nodata": -9999,
+"colors": [
+"#00007F",
+"#0000FF",
+"#00FFFF",
+"#00FF00",
+"#FFFF00",
+"#FF7F00",
+"#FF0000"
+]
+},
 
-  "aerosol_index_340_380": {
-    "type": "continuous",
-    "vmin": -1.0,
-    "vmax": 5.0,
-    "nodata": -9999,
-    "colors": [
-      "#00007F",
-      "#0000FF",
-      "#00FFFF",
-      "#00FF00",
-      "#FFFF00",
-      "#FF7F00",
-      "#FF0000"
-    ]
-  },
+"aerosol_index_340_380": {
+"title": "UV Aerosol Index (340–380 nm)",
+"short_name": "UVAI",
+"description": "Absorbing Aerosol Index calculated from radiances at 340 and 380 nm. Positive values indicate absorbing aerosols such as mineral dust, biomass burning smoke or volcanic ash.",
+"source": "Sentinel-5P TROPOMI",
+"type": "continuous",
+"unit": "AI",
+"valid_range": [-5, 10],
+"vmin": -1.0,
+"vmax": 5.0,
+"nodata": -9999,
+"colors": [
+"#00007F",
+"#0000FF",
+"#00FFFF",
+"#00FF00",
+"#FFFF00",
+"#FF7F00",
+"#FF0000"
+]
+},
 
-  "aerosol_index_354_388": {
-    "type": "continuous",
-    "vmin": -1.0,
-    "vmax": 5.0,
-    "nodata": -9999,
-    "colors": [
-      "#00007F",
-      "#0000FF",
-      "#00FFFF",
-      "#00FF00",
-      "#FFFF00",
-      "#FF7F00",
-      "#FF0000"
-    ]
-  },  
+"aerosol_index_354_388": {
+"title": "UV Aerosol Index (354–388 nm)",
+"short_name": "UVAI",
+"description": "Absorbing Aerosol Index derived from wavelengths 354 and 388 nm, commonly used to detect elevated aerosol layers such as desert dust and smoke plumes.",
+"source": "Sentinel-5P TROPOMI",
+"type": "continuous",
+"unit": "AI",
+"valid_range": [-5, 10],
+"vmin": -1.0,
+"vmax": 5.0,
+"nodata": -9999,
+"colors": [
+"#00007F",
+"#0000FF",
+"#00FFFF",
+"#00FF00",
+"#FFFF00",
+"#FF7F00",
+"#FF0000"
+]
+},
 
 "carbonmonoxide_total_column": {
-  "type": "continuous",
-  "unit": "mol/m²",
-  "vmin": 0.0,
-  "vmax": 0.1,
-  "nodata": -9999,
-  "ticks": [0.0, 0.0125, 0.0375, 0.0625, 0.0875, 0.1],
-  "colors": [
-    "#00007F",
-    "#0000FF",
-    "#00FFFF",
-    "#00FF00",
-    "#FFFF00",
-    "#FF0000",
-    "#7F0000"
-  ]
+"title": "Carbon Monoxide Total Column",
+"short_name": "CO",
+"description": "Total atmospheric column of carbon monoxide retrieved from Sentinel-5P TROPOMI measurements. CO is mainly produced by incomplete combustion processes and biomass burning.",
+"source": "Sentinel-5P TROPOMI",
+"type": "continuous",
+"unit": "mol/m²",
+"valid_range": [0.0, 1.0],
+"vmin": 0.0,
+"vmax": 0.1,
+"nodata": -9999,
+"ticks": [0.0, 0.0125, 0.0375, 0.0625, 0.0875, 0.1],
+"colors": [
+"#00007F",
+"#0000FF",
+"#00FFFF",
+"#00FF00",
+"#FFFF00",
+"#FF0000",
+"#7F0000"
+]
 },
 
 "nitrogendioxide_tropospheric_column": {
-  "type": "continuous",
-  "unit": "mol/m²",
-  "vmin": 0.0,
-  "vmax": 1.0E-4,
-  "nodata": -9999,
-  "ticks": [0.0, 1.25E-5, 3.75E-5, 6.25E-5, 8.75E-5, 1.0E-4],
-  "colors": [
-    "#00007F",
-    "#0000FF",
-    "#00FFFF",
-    "#00FF00",
-    "#FFFF00",
-    "#FF0000",
-    "#7F0000"
-  ]
+"title": "Tropospheric Nitrogen Dioxide Column",
+"short_name": "NO₂",
+"description": "Tropospheric vertical column density of nitrogen dioxide (NO₂). This gas is mainly emitted by fossil fuel combustion, traffic and industrial activities and is an important air quality indicator.",
+"source": "Sentinel-5P TROPOMI",
+"type": "continuous",
+"unit": "mol/m²",
+"valid_range": [0.0, 1.0E-3],
+"vmin": 0.0,
+"vmax": 1.0E-4,
+"nodata": -9999,
+"ticks": [0.0, 1.25E-5, 3.75E-5, 6.25E-5, 8.75E-5, 1.0E-4],
+"colors": [
+"#00007F",
+"#0000FF",
+"#00FFFF",
+"#00FF00",
+"#FFFF00",
+"#FF0000",
+"#7F0000"
+]
 },
 
-  "methane_mixing_ratio": {
-    "type": "continuous",
-    "unit": "ppb",
-    "vmin": 1600,
-    "vmax": 2000,
-    "nodata": -9999,
-    "colors": [
-      "#00007F",
-      "#0000FF",
-      "#00FFFF",
-      "#00FF00",
-      "#FFFF00",
-      "#FF7F00",
-      "#FF0000"
-  ]
+"methane_mixing_ratio": {
+"title": "Methane Mixing Ratio",
+"short_name": "CH₄",
+"description": "Column-averaged dry-air mixing ratio of methane (CH₄). Methane is a powerful greenhouse gas emitted by natural sources, agriculture, wetlands and fossil fuel production.",
+"source": "Sentinel-5P TROPOMI",
+"type": "continuous",
+"unit": "ppb",
+"valid_range": [1500, 2200],
+"vmin": 1600,
+"vmax": 2000,
+"nodata": -9999,
+"colors": [
+"#00007F",
+"#0000FF",
+"#00FFFF",
+"#00FF00",
+"#FFFF00",
+"#FF7F00",
+"#FF0000"
+]
 },
 
-  "ozone_total_vertical_column": {
-    "type": "continuous",
-    "vmin": 0.0,
-    "vmax": 0.00000001,
-    "nodata": -9999,
-    "colors": [
-      "#00007F",
-      "#0000FF",
-      "#00FFFF",
-      "#00FF00",
-      "#FFFF00",
-      "#FF7F00",
-      "#FF0000"
-  ]
+"ozone_total_vertical_column": {
+"title": "Total Ozone Column",
+"short_name": "O₃",
+"description": "Total vertical column of atmospheric ozone retrieved from Sentinel-5P measurements. Ozone in the stratosphere protects the Earth from harmful ultraviolet radiation.",
+"source": "Sentinel-5P TROPOMI",
+"type": "continuous",
+"unit": "mol/m²",
+"valid_range": [0.0, 1.0E-5],
+"vmin": 0.0,
+"vmax": 0.00000001,
+"nodata": -9999,
+"colors": [
+"#00007F",
+"#0000FF",
+"#00FFFF",
+"#00FF00",
+"#FFFF00",
+"#FF7F00",
+"#FF0000"
+]
 },
 
-  "sulfurdioxide_total_vertical_column": {
-    "type": "continuous",
-    "unit": "mol/m²",
-    "vmin": 0.0,
-    "vmax": 0.5,
-    "nodata": -9999,
-    "colors": [
-      "#00007F",
-      "#0000FF",
-      "#00FFFF",
-      "#00FF00",
-      "#FFFF00",
-      "#FF7F00",
-      "#FF0000"
-    ]
-  }
+"sulfurdioxide_total_vertical_column": {
+"title": "Sulfur Dioxide Total Column",
+"short_name": "SO₂",
+"description": "Total atmospheric column of sulfur dioxide (SO₂). Major sources include volcanic eruptions, industrial emissions and combustion of sulfur-containing fuels.",
+"source": "Sentinel-5P TROPOMI",
+"type": "continuous",
+"unit": "mol/m²",
+"valid_range": [0.0, 5.0],
+"vmin": 0.0,
+"vmax": 0.5,
+"nodata": -9999,
+"colors": [
+"#00007F",
+"#0000FF",
+"#00FFFF",
+"#00FF00",
+"#FFFF00",
+"#FF7F00",
+"#FF0000"
+]
 }
-
-
+}
