@@ -175,5 +175,27 @@
 "#FF7F00",
 "#FF0000"
 ]
+},
+
+"rf": {
+"title": "Risco de Fogo - Modelo INPE",
+"short_name": "RF",
+"description": "Mapa de Risco de Fogo",
+"source": "Modelo",
+"type": "continuous",
+"unit": "0-1",
+"valid_range": [0, 1],
+"vmin": 0.0,
+"vmax": 1.0,
+"nodata": -9999,
+"colors": [
+"#00007F",
+"#0000FF",
+"#00FFFF",
+"#00FF00",
+"#FFFF00",
+"#FF7F00",
+"#FF0000"
+]
 }
 }

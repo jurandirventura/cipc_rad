@@ -81,12 +81,27 @@ for f in FILES:
 
     name = os.path.basename(f)
 
+    # m = re.search(r'_(\d{8})T', name)
+
+    # if m:
+    #     date = m.group(1)
+    # else:
+    #     date = "unknown"
+
+
+    # tenta padrão Sentinel (com T)
     m = re.search(r'_(\d{8})T', name)
 
     if m:
         date = m.group(1)
     else:
-        date = "unknown"
+        # tenta padrão INPE (sem T)
+        m = re.search(r'(\d{8})', name)
+        if m:
+            date = m.group(1)
+        else:
+            date = "unknown"
+
 
     if date not in groups:
         groups[date] = []
@@ -141,7 +156,8 @@ for date_part, day_files in groups.items():
 
     all_lon = []
     all_lat = []
-    all_values = []    
+    all_values = []   
+    all_data = [] 
 
     print("\nProcessando data:", date_part)
 
@@ -200,8 +216,22 @@ for date_part, day_files in groups.items():
 
 
         var = ds[VAR_PRODUCT][0]
-        lat = ds["latitude"][0]
-        lon = ds["longitude"][0]
+        if "time" in var.dims:
+            data = var.isel(time=0)
+        else:
+            data = var
+
+        # lat = ds["latitude"][0]
+        # lon = ds["longitude"][0]
+
+        if "latitude" in ds:
+            lat = ds["latitude"]
+            lon = ds["longitude"]
+        elif "lat" in ds:
+            lat = ds["lat"]
+            lon = ds["lon"]
+        else:
+            raise Exception("Variáveis de latitude/longitude não encontradas")   
 
         data = var.astype(float).values
         lat = lat.values
@@ -257,16 +287,30 @@ for date_part, day_files in groups.items():
 
 
 
+        # OLD - só funciona para o Sentinel
+        # valid = ~np.isnan(data)
 
-        # data = grid_data
-        # lon = grid_lon2
-        # lat = grid_lat2
+        # all_lon.append(lon[valid])
+        # all_lat.append(lat[valid])
+        # all_values.append(data[valid])
 
-        valid = ~np.isnan(data)
+        valid = np.isfinite(data)
 
-        all_lon.append(lon[valid])
-        all_lat.append(lat[valid])
-        all_values.append(data[valid])
+        # CASO 1: lat/lon 1D (INPE, ERA5, etc)
+        if lat.ndim == 1 and lon.ndim == 1:
+            lon2d, lat2d = np.meshgrid(lon, lat)
+
+            all_lon.append(lon2d[valid])
+            all_lat.append(lat2d[valid])
+            all_data.append(data[valid])
+
+        # CASO 2: lat/lon 2D (Sentinel)
+        else:
+            all_lon.append(lon[valid])
+            all_lat.append(lat[valid])
+            all_data.append(data[valid])
+
+
 
 
         # =========================
