@@ -197,5 +197,25 @@
 "#FF7F00",
 "#FF0000"
 ]
+},
+
+"area_queimada": {
+  "title": "Área Queimada (MODIS)",
+  "short_name": "Burned Area",
+  "description": "Mapa mensal de área queimada derivado do sensor MODIS. Valores indicam ocorrência de áreas afetadas por queimadas.",
+  "source": "INPE / MODIS",
+  "type": "binary",
+  "unit": "classe",
+  "valid_range": [0, 255],
+  "vmin": 0,
+  "vmax": 255,
+  "nodata": 0,
+  "colors": [
+    "#000000",  
+    "#FFFF00",  
+    "#FFA500",  
+    "#FF0000",  
+    "#8B0000"   
+  ]
 }
 }

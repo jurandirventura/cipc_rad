@@ -196,17 +196,32 @@ for date_part, day_files in groups.items():
     for FILE in day_files:
 
 
-
         print("Lendo:", FILE)
 
         try:
 
-            ds = xr.open_dataset(
-                FILE,
-                group=GROUP,
-                engine="netcdf4",
-                decode_cf=False
-            )
+            # 🔥 abre com ou sem group
+            if GROUP and GROUP not in ["", "/"]:
+                ds = xr.open_dataset(
+                    FILE,
+                    group=GROUP,
+                    engine="netcdf4",
+                    decode_cf=False
+                )
+            else:
+                # ds = xr.open_dataset(
+                #     FILE,
+                #     engine="netcdf4",
+                #     decode_cf=False
+                # )
+
+                ds = xr.open_dataset(
+                    FILE,
+                    engine="netcdf4",
+                    decode_cf=True   # IMPORTANTE
+                )                
+
+
 
         except Exception as e:
 
@@ -215,14 +230,22 @@ for date_part, day_files in groups.items():
             continue
 
 
-        var = ds[VAR_PRODUCT][0]
-        if "time" in var.dims:
-            data = var.isel(time=0)
-        else:
-            data = var
+        # =========================
+        # VARIÁVEL
+        # =========================
 
-        # lat = ds["latitude"][0]
-        # lon = ds["longitude"][0]
+        var = ds[VAR_PRODUCT]
+
+        # 🔥 remove dimensão de tempo corretamente
+        if "time" in var.dims:
+            var = var.isel(time=0)
+
+        data = var.astype(float).values
+
+
+        # =========================
+        # LAT / LON
+        # =========================
 
         if "latitude" in ds:
             lat = ds["latitude"]
@@ -231,11 +254,50 @@ for date_part, day_files in groups.items():
             lat = ds["lat"]
             lon = ds["lon"]
         else:
-            raise Exception("Variáveis de latitude/longitude não encontradas")   
+            raise Exception("Variáveis de latitude/longitude não encontradas")
 
-        data = var.astype(float).values
         lat = lat.values
         lon = lon.values
+
+        # print("Lendo:", FILE)
+
+        # try:
+
+        #     ds = xr.open_dataset(
+        #         FILE,
+        #         group=GROUP,
+        #         engine="netcdf4",
+        #         decode_cf=False
+        #     )
+
+        # except Exception as e:
+
+        #     print("Erro abrindo", FILE)
+        #     print(e)
+        #     continue
+
+
+        # var = ds[VAR_PRODUCT][0]
+        # if "time" in var.dims:
+        #     data = var.isel(time=0)
+        # else:
+        #     data = var
+
+        # # lat = ds["latitude"][0]
+        # # lon = ds["longitude"][0]
+
+        # if "latitude" in ds:
+        #     lat = ds["latitude"]
+        #     lon = ds["longitude"]
+        # elif "lat" in ds:
+        #     lat = ds["lat"]
+        #     lon = ds["lon"]
+        # else:
+        #     raise Exception("Variáveis de latitude/longitude não encontradas")   
+
+        # data = var.astype(float).values
+        # lat = lat.values
+        # lon = lon.values
 
 
         # =========================
@@ -252,10 +314,32 @@ for date_part, day_files in groups.items():
         # QA FILTER
         # =========================
 
+        # if "qa_value" in ds.variables:
+
+        #     qa = ds["qa_value"][0].values
+        #     data[qa < 0.75] = np.nan
+
+        # =========================
+        # QA FILTER (somente Sentinel)
+        # =========================
+
+     ###   if VAR_PRODUCT.lower() in ["no2", "co", "o3", "so2", "ch4"]:
+
         if "qa_value" in ds.variables:
 
-            qa = ds["qa_value"][0].values
+            qa = ds["qa_value"]
+
+            if "time" in qa.dims:
+                qa = qa.isel(time=0)
+
+            qa = qa.values
+
             data[qa < 0.75] = np.nan
+
+
+
+
+        #print(data)
 
 
         # # =========================
@@ -302,13 +386,13 @@ for date_part, day_files in groups.items():
 
             all_lon.append(lon2d[valid])
             all_lat.append(lat2d[valid])
-            all_data.append(data[valid])
+            all_values.append(data[valid])
 
         # CASO 2: lat/lon 2D (Sentinel)
         else:
             all_lon.append(lon[valid])
             all_lat.append(lat[valid])
-            all_data.append(data[valid])
+            all_values.append(data[valid])
 
 
 

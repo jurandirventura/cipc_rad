@@ -61,3 +61,14 @@ touch src/viewer/__init__.py
 - Execute this way
 
 (env_cipc_rad) jurandir@DESKTOP071300:~/cipc_rad$ python3 -m src.download.download_product AER_AI 2023-10-10 2023-10-11
+
+Aerosol Index
+python -m src.processing.run_daily_plots 2023-10-10 2023-10-22 ~/cipc_data/L2/AER_AI/2023 PRODUCT aerosol_index_354_388 "Sentinel-5P Aerosol Index" AI png
+
+NO2
+python3 -m src.download.download_product NO2 2024-08-15 2024-08-25
+
+RISCO DE FOGO
+python -m src.processing.run_daily_plots 2024-08-15 2024-08-25 ~/cipc_data/L2/RISCO_FOGO/2024 "" rf "Modelo Risco de Fogo" RF png
+
+
