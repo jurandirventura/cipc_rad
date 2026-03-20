@@ -1,8 +1,6 @@
 # Com qa_value mas plotando apenas valores maiores que -1
 # Inclui também as subdivisões de mapa para Estados...
 
-
-
 import sys
 import os
 import re
@@ -27,6 +25,45 @@ import subprocess
 
 from scipy.interpolate import griddata
 from scipy.spatial import cKDTree
+
+
+import xarray as xr
+import netCDF4
+
+def open_netcdf_smart(file, group=None):
+    """
+    Abre NetCDF com ou sem group automaticamente
+    """
+
+    try:
+        # Abre via netCDF4 para inspecionar
+        nc = netCDF4.Dataset(file)
+
+        # Lista grupos disponíveis
+        groups = list(nc.groups.keys())
+
+        nc.close()
+
+        # Caso tenha grupos (ex: Sentinel-5P)
+        if groups:
+            if group:
+                print(f"[INFO] Abrindo com group: {group}")
+                return xr.open_dataset(file, group=group)
+            else:
+                # fallback padrão Sentinel
+                print("[INFO] Group não informado, usando '/PRODUCT'")
+                return xr.open_dataset(file, group="/PRODUCT")
+
+        # Caso NÃO tenha grupos (ex: risco de fogo)
+        else:
+            print("[INFO] Arquivo sem group (raiz)")
+            return xr.open_dataset(file)
+
+    except Exception as e:
+        print(f"[ERRO] Falha ao abrir arquivo: {e}")
+        raise
+
+
 
 # =========================
 # ARGUMENTOS
@@ -198,30 +235,38 @@ for date_part, day_files in groups.items():
 
         print("Lendo:", FILE)
 
+        # try:
+
+        #     # 🔥 abre com ou sem group
+        #     # if GROUP and GROUP not in ["", "/"]:
+        #     if GROUP.strip() not in ["", "/"]: 
+        #         ds = xr.open_dataset(
+        #             FILE,
+        #             group=GROUP,
+        #             engine="netcdf4",
+        #             decode_cf=False
+        #         )
+        #     else:
+        #         # ds = xr.open_dataset(
+        #         #     FILE,
+        #         #     engine="netcdf4",
+        #         #     decode_cf=False
+        #         # )
+
+        #         ds = xr.open_dataset(
+        #             FILE,
+        #             engine="netcdf4",
+        #             decode_cf=True   # IMPORTANTE
+        #         )                
+            
+            
+
+        # except Exception as e:
+
         try:
 
-            # 🔥 abre com ou sem group
-            if GROUP and GROUP not in ["", "/"]:
-                ds = xr.open_dataset(
-                    FILE,
-                    group=GROUP,
-                    engine="netcdf4",
-                    decode_cf=False
-                )
-            else:
-                # ds = xr.open_dataset(
-                #     FILE,
-                #     engine="netcdf4",
-                #     decode_cf=False
-                # )
-
-                ds = xr.open_dataset(
-                    FILE,
-                    engine="netcdf4",
-                    decode_cf=True   # IMPORTANTE
-                )                
-
-
+            # 🔥 NOVO: usa função inteligente
+            ds = open_netcdf_smart(FILE, GROUP)
 
         except Exception as e:
 
@@ -320,10 +365,26 @@ for date_part, day_files in groups.items():
         #     data[qa < 0.75] = np.nan
 
         # =========================
-        # QA FILTER (somente Sentinel)
+        # QA FILTER (somente Sentinel). Utiliza dados >= 0.75
+        # Abaixo de 0.75, os dados são descartados (NaN)
         # =========================
 
      ###   if VAR_PRODUCT.lower() in ["no2", "co", "o3", "so2", "ch4"]:
+
+        # if "qa_value" in ds.variables:
+
+        #     qa = ds["qa_value"]
+
+        #     if "time" in qa.dims:
+        #         qa = qa.isel(time=0)
+
+        #     qa = qa.values
+
+        #     if qa.shape != data.shape:
+        #         qa = np.squeeze(qa)
+
+        #     data[qa < 0.75] = np.nan
+
 
         if "qa_value" in ds.variables:
 
@@ -334,7 +395,28 @@ for date_part, day_files in groups.items():
 
             qa = qa.values
 
-            data[qa < 0.75] = np.nan
+            # 🔥 remove dimensões extras
+            qa = np.squeeze(qa)
+
+            # 🔥 garante mesmo shape do data
+            if qa.shape != data.shape:
+                try:
+                    qa = np.broadcast_to(qa, data.shape)
+                except:
+                    print("⚠️ QA shape incompatível:", qa.shape, "vs", data.shape)
+                    qa = None
+
+            if qa is not None:
+                data[qa < 0.75] = np.nan
+
+
+
+
+
+
+
+
+
 
 
 
@@ -378,22 +460,57 @@ for date_part, day_files in groups.items():
         # all_lat.append(lat[valid])
         # all_values.append(data[valid])
 
+        ########################################## parte hoje
+        # reprocessamento 20mar2026
+        # valid = np.isfinite(data)
+
+        # # CASO 1: lat/lon 1D (INPE, ERA5, etc)
+        # if lat.ndim == 1 and lon.ndim == 1:
+        #     lon2d, lat2d = np.meshgrid(lon, lat)
+
+        #     all_lon.append(lon2d[valid])
+        #     all_lat.append(lat2d[valid])
+        #     all_values.append(data[valid])
+
+        # # CASO 2: lat/lon 2D (Sentinel)
+        # else:
+        #     all_lon.append(lon[valid])
+        #     all_lat.append(lat[valid])
+        #     all_values.append(data[valid])
+        ############################################
+
         valid = np.isfinite(data)
 
-        # CASO 1: lat/lon 1D (INPE, ERA5, etc)
-        if lat.ndim == 1 and lon.ndim == 1:
-            lon2d, lat2d = np.meshgrid(lon, lat)
+        # garante que data é 2D
+        if data.ndim == 2:
+
+            # caso lat/lon 1D → cria grade
+            if lat.ndim == 1 and lon.ndim == 1:
+                lon2d, lat2d = np.meshgrid(lon, lat)
+
+            # caso lat/lon 2D → usa direto
+            elif lat.ndim == 2 and lon.ndim == 2:
+                lat2d = lat
+                lon2d = lon
+
+            # 🔥 CASO PROBLEMÁTICO (Sentinel com dimensão extra)
+            else:
+                lat2d = np.squeeze(lat)
+                lon2d = np.squeeze(lon)
+
+                if lat2d.ndim == 1 and lon2d.ndim == 1:
+                    lon2d, lat2d = np.meshgrid(lon2d, lat2d)
+
+            # 🔥 AGORA GARANTE COMPATIBILIDADE
+            if lat2d.shape != data.shape:
+                print("⚠️ Ajustando shape lat/lon para bater com data")
+
+                lat2d = np.broadcast_to(lat2d, data.shape)
+                lon2d = np.broadcast_to(lon2d, data.shape)
 
             all_lon.append(lon2d[valid])
             all_lat.append(lat2d[valid])
-            all_values.append(data[valid])
-
-        # CASO 2: lat/lon 2D (Sentinel)
-        else:
-            all_lon.append(lon[valid])
-            all_lat.append(lat[valid])
-            all_values.append(data[valid])
-
+            all_values.append(data[valid])        
 
 
 

@@ -71,4 +71,78 @@ python3 -m src.download.download_product NO2 2024-08-15 2024-08-25
 RISCO DE FOGO
 python -m src.processing.run_daily_plots 2024-08-15 2024-08-25 ~/cipc_data/L2/RISCO_FOGO/2024 "" rf "Modelo Risco de Fogo" RF png
 
+Observação: No caso de área queimada que é somente o arquivo tif, criar 
+            o diretório de saída em cipc_output. Deve ficar assim:
+            /home/jurandir/cipc_output/geotiff/area_queimada/2024/arquivo.tif
+
+
+- TEMPO DE PROCESSAMENTO DE LEITURA/GERAÇÃO DE DADOS DE NETCDF PARA PNG, GEOTIFF...
+
+Diretório de processamento: cipc_rad
+Ambiente: conda activate env_cipc_rad
+
+AEROSOL INDEX 
+Ex.: 2024-08-25 a 2024-08-25 
+
+* Linha de comando
+(env_cipc_rad) jurandir@DESKTOP071300:~/cipc_rad$ time python -m src.processing.run_daily_plots 2024-08-15 2024-08-25 ~/cipc_data/L2/AER_AI/2024 PRODUCT aerosol_index_354_388 "Sentinel-5P Aerosol Index" AI png
+
+* Tempo de execução (processes = 4) = 3 minutos e 6 segundos
+Primeira vez
+real	3m6,207s
+user	6m40,958s
+sys	0m15,508s 
+Segunda vez
+real	2m45,222s
+user	7m3,720s
+sys	0m9,653s
+= Média de 3 minutos
+
+
+PRODUTO RISCO DE FOGO
+time python -m src.processing.run_daily_plots 2024-08-15 2024-08-25 ~/cipc_data/L2/RISCO_FOGO/2024 "" rf "Produto de Risco de Fogo – Queimadas - INPE" RF png
+
+
+PRODUTO CO 
+time python -m src.processing.run_daily_plots 2024-08-15 2024-08-25 ~/cipc_data/L2/CO/2024 PRODUCT carbonmonoxide_total_column "Sentinel-5P Carbon Monoxide Total Column" CO png 
+
+python -m src.processing.run_daily_plots 2023-10-10 2023-10-22 ~/cipc_data/L2/CO/2023 PRODUCT carbonmonoxide_total_column "Sentinel-5P Carbon Monoxide Total Column" CO png
+
+* Tempo de execução
+real	2m1,163s
+user	2m35,807s
+sys	0m9,906s
+
+
+PRODUTO CH4
+time python -m src.processing.run_daily_plots 2024-08-15 2024-08-25 ~/cipc_data/L2/CH4/2024 PRODUCT methane_mixing_ratio "Sentinel-5P Methane Mixing Ratio" CH4 png
+
+time python -m src.processing.run_daily_plots 2023-10-10 2023-10-22 ~/cipc_data/L2/CH4/2023 PRODUCT methane_mixing_ratio "Sentinel-5P Methane Mixing Ratio" CH4 png
+
+PRODUTO NO2
+time python -m src.processing.run_daily_plots 2024-08-15 2024-08-25 ~/cipc_data/L2/NO2/2024 PRODUCT nitrogendioxide_tropospheric_column "Sentinel-5P Nitrogen Dioxide Tropospheric  Column" NO2 png
+
+time python -m src.processing.run_daily_plots 2023-10-10 2023-10-22 ~/cipc_data/L2/NO2/2023 PRODUCT nitrogendioxide_tropospheric_column "Sentinel-5P Nitrogen Dioxide Tropospheric  Column" NO2 png
+
+real	1m55,184s
+user	3m43,395s
+sys	0m8,021s
+
+
+PRODUTO SO2 
+ time python -m src.processing.run_daily_plots 2024-08-15 2024-08-25 ~/cipc_data/L2/SO2/2024 PRODUCT sulfurdioxide_total_vertical_column "Sentinel-5P Sulfur Dioxide Total Vertical Column" SO2 png
+
+time python -m src.processing.run_daily_plots 2023-10-10 2023-10-22 ~/cipc_data/L2/SO2/2023 PRODUCT sulfurdioxide_total_vertical_column "Sentinel-5P Sulfur Dioxide Total Vertical Column" SO2 png
+
+real	0m39,473s
+user	1m21,962s
+sys	0m3,649s
+
+
+PRODUTO CLOUD
+CLOUD_OPTICAL_THICKNESS
+
+
+
+
 
