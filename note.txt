@@ -141,8 +141,61 @@ sys	0m3,649s
 
 PRODUTO CLOUD
 CLOUD_OPTICAL_THICKNESS
+time python -m src.processing.run_daily_plots 2024-08-15 2024-08-25 ~/cipc_data/L2/CLOUD/2024 PRODUCT cloud_optical_thickness "Cloud Optical Thickness" CLOUD_Optical_Thickness png
+
+time python -m src.processing.run_daily_plots 2023-10-10 2023-10-22 ~/cipc_data/L2/CLOUD/2023 PRODUCT cloud_optical_thickness "Cloud Optical Thickness" CLOUD_Optical_Thickness png
+
+real	1m55,293s
+user	4m9,745s
+sys	0m9,449s
+
+CLOUD_BASE_HEIGHT
+time python -m src.processing.run_daily_plots 2024-08-15 2024-08-25 ~/cipc_data/L2/CLOUD/2024 PRODUCT cloud_base_height "Cloud Base Height" CLOUD_Base_Height png
+
+time python -m src.processing.run_daily_plots 2023-10-10 2023-10-22 ~/cipc_data/L2/CLOUD/2023 PRODUCT cloud_base_height "Cloud Base Height" CLOUD_Base_Height pngtime python -m src.processing.run_daily_plots 2023-10-10 2023-10-22 ~/cipc_data/L2/CLOUD/2023 PRODUCT cloud_base_height "Cloud Base Height" CLOUD_Base_Height png
+
+real	1m48,073s
+user	4m15,593s
+sys	0m10,072s
 
 
+CLOUD_BASE_PRESSURE
+time python -m src.processing.run_daily_plots 2024-08-15 2024-08-25 ~/cipc_data/L2/CLOUD/2024 PRODUCT cloud_base_pressure "Sentinel-5P Cloud Base Pressure" CLOUD_BasePressure png
+
+time python -m src.processing.run_daily_plots 2023-10-10 2023-10-22 ~/cipc_data/L2/CLOUD/2023 PRODUCT cloud_base_pressure "Sentinel-5P Cloud Base Pressure" CLOUD_BasePressure png
+
+real	2m41,982s
+user	6m8,940s
+sys	0m11,528s
+
+CLOUD_FRACTION
+ time python -m src.processing.run_daily_plots 2024-08-15 2024-08-25 ~/cipc_data/L2/CLOUD/2024 PRODUCT cloud_fraction "Sentinel-5P Cloud Fraction" CLOUD_Fraction png
+
+time python -m src.processing.run_daily_plots 2023-10-10 2023-10-22 ~/cipc_data/L2/CLOUD/2023 PRODUCT cloud_fraction "Sentinel-5P Cloud Fraction" CLOUD_Fraction png
+
+real	1m45,648s
+user	4m16,409s
+sys	0m8,509s
 
 
+CLOUD_TOP_HEIGHT
+ time python -m src.processing.run_daily_plots 2024-08-15 2024-08-25 ~/cipc_data/L2/CLOUD/2024 PRODUCT cloud_top_height "Sentinel-5P Cloud Top Height" CLOUD_Top_Height png
 
+ time python -m src.processing.run_daily_plots 2023-10-10 2023-10-22 ~/cipc_data/L2/CLOUD/2023 PRODUCT cloud_fraction "Sentinel-5P Cloud Fraction" CLOUD_Fraction png
+
+real	2m36,915s
+user	6m24,079s
+sys	0m12,060s
+
+
+CLOUD_TOP_PRESSURE
+time python -m src.processing.run_daily_plots 2024-08-15 2024-08-25 ~/cipc_data/L2/CLOUD/2024 PRODUCT cloud_top_pressure "Sentinel-5P Cloud Top Pressure" CLOUD_Top_Pressure png
+
+time python -m src.processing.run_daily_plots 2023-10-10 2023-10-22 ~/cipc_data/L2/CLOUD/2023 PRODUCT cloud_top_pressure "Sentinel-5P Cloud Top Pressure" CLOUD_Top_Pressure png
+
+real	1m54,076s
+user	4m35,493s
+sys	0m8,802s
+
+HCCO - FORMALDEHYDE
+time python -m src.processing.run_daily_plots 2023-10-10 2023-10-22 ~/cipc_data/L2/HCHO/2023 PRODUCT formaldehyde_tropospheric_vertical_column "Sentinel-5P HCHO Formaldehyde Tropospheric Vertical Column" formaldehyde_tropospheric_vertical_column png

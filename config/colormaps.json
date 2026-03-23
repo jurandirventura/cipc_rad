@@ -217,5 +217,160 @@
     "#FF0000",  
     "#8B0000"   
   ]
+},
+
+"cloud_optical_thickness": {
+  "title": "Cloud Optical Thickness",
+  "short_name": "COT",
+  "description": "Cloud optical thickness indicates how much light is attenuated by clouds. Higher values represent thicker clouds.",
+  "source": "Sentinel-5P TROPOMI",
+  "type": "continuous",
+  "unit": "1",
+  "valid_range": [0.0, 150.0],
+  "vmin": 0.0,
+  "vmax": 50.0,
+  "nodata": -9999,
+  "colors": [
+    "#000000",
+    "#1a1a1a",
+    "#4d4d4d",
+    "#808080",
+    "#bfbfbf",
+    "#e6e6e6",
+    "#ffffff"
+  ]
+},
+
+"cloud_fraction": {
+  "title": "Cloud Fraction",
+  "short_name": "CF",
+  "description": "Fraction of cloud cover within the satellite pixel. Values range from 0 (clear sky) to 1 (fully cloudy).",
+  "source": "Sentinel-5P TROPOMI",
+  "type": "continuous",
+  "unit": "1",
+  "valid_range": [0.0, 1.0],
+  "vmin": 0.0,
+  "vmax": 1.0,
+  "nodata": -9999,
+  "colors": [
+    "#0000FF",
+    "#00FFFF",
+    "#00FF00",
+    "#FFFF00",
+    "#FFA500",
+    "#FF0000",
+    "#800000"
+  ]
+},
+
+"cloud_top_height": {
+  "title": "Cloud Top Height",
+  "short_name": "CTH",
+  "description": "Height of the cloud top above sea level.",
+  "source": "Sentinel-5P TROPOMI",
+  "type": "continuous",
+  "unit": "m",
+  "valid_range": [0.0, 20000.0],
+  "vmin": 0.0,
+  "vmax": 15000.0,
+  "nodata": -9999,
+  "colors": [
+    "#00007F",
+    "#0000FF",
+    "#00FFFF",
+    "#00FF00",
+    "#FFFF00",
+    "#FF7F00",
+    "#FF0000"
+  ]
+},
+
+"cloud_base_height": {
+  "title": "Cloud Base Height",
+  "short_name": "CBH",
+  "description": "Height of the cloud base above sea level.",
+  "source": "Sentinel-5P TROPOMI",
+  "type": "continuous",
+  "unit": "m",
+  "valid_range": [0.0, 10000.0],
+  "vmin": 0.0,
+  "vmax": 5000.0,
+  "nodata": -9999,
+  "colors": [
+    "#001f3f",
+    "#0074D9",
+    "#7FDBFF",
+    "#2ECC40",
+    "#FFDC00",
+    "#FF851B",
+    "#FF4136"
+  ]
+},
+
+"cloud_top_pressure": {
+  "title": "Cloud Top Pressure",
+  "short_name": "CTP",
+  "description": "Atmospheric pressure at the cloud top. Lower values correspond to higher altitude clouds.",
+  "source": "Sentinel-5P TROPOMI",
+  "type": "continuous",
+  "unit": "Pa",
+  "valid_range": [10000.0, 110000.0],
+  "vmin": 10000.0,
+  "vmax": 100000.0,
+  "nodata": -9999,
+  "colors": [
+    "#800000",
+    "#FF0000",
+    "#FF7F00",
+    "#FFFF00",
+    "#00FF00",
+    "#00FFFF",
+    "#0000FF"
+  ]
+},
+
+"cloud_base_pressure": {
+  "title": "Cloud Base Pressure",
+  "short_name": "CBP",
+  "description": "Atmospheric pressure at the cloud base.",
+  "source": "Sentinel-5P TROPOMI",
+  "type": "continuous",
+  "unit": "Pa",
+  "valid_range": [50000.0, 110000.0],
+  "vmin": 50000.0,
+  "vmax": 100000.0,
+  "nodata": -9999,
+  "colors": [
+    "#4B0082",
+    "#0000FF",
+    "#00FFFF",
+    "#00FF00",
+    "#FFFF00",
+    "#FFA500",
+    "#FF0000"
+  ]
+},
+
+"formaldehyde_tropospheric_vertical_column": {
+  "title": "Tropospheric Formaldehyde Column",
+  "short_name": "HCHO",
+  "description": "Tropospheric vertical column density of formaldehyde (HCHO). Formaldehyde is an important intermediate product in the oxidation of volatile organic compounds (VOCs) and is widely used as an indicator of atmospheric pollution and biomass burning.",
+  "source": "Sentinel-5P TROPOMI",
+  "type": "continuous",
+  "unit": "mol/m²",
+  "valid_range": [0.0, 0.001],
+  "vmin": 0.0,
+  "vmax": 0.0005,
+  "nodata": -9999,
+  "ticks": [0.0, 0.0001, 0.0002, 0.0003, 0.0004, 0.0005],
+  "colors": [
+    "#00007F",
+    "#0000FF",
+    "#00FFFF",
+    "#00FF00",
+    "#FFFF00",
+    "#FF7F00",
+    "#FF0000"
+  ]
 }
 }
