@@ -140,9 +140,9 @@
 "source": "Sentinel-5P TROPOMI",
 "type": "continuous",
 "unit": "mol/m²",
-"valid_range": [0.0, 1.0E-5],
+"valid_range": [0.0, 0.36],
 "vmin": 0.0,
-"vmax": 0.00000001,
+"vmax": 0.36,
 "nodata": -9999,
 "colors": [
 "#00007F",

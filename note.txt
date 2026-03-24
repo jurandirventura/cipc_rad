@@ -102,6 +102,8 @@ sys	0m9,653s
 PRODUTO RISCO DE FOGO
 time python -m src.processing.run_daily_plots 2024-08-15 2024-08-25 ~/cipc_data/L2/RISCO_FOGO/2024 "" rf "Produto de Risco de Fogo – Queimadas - INPE" RF png
 
+time python -m src.processing.run_daily_plots 2023-10-10 2023-10-22 ~/cipc_data/L2/RISCO_FOGO/2023 "" rf "Produto de Risco de Fogo – Queimadas - INPE" RF png
+
 
 PRODUTO CO 
 time python -m src.processing.run_daily_plots 2024-08-15 2024-08-25 ~/cipc_data/L2/CO/2024 PRODUCT carbonmonoxide_total_column "Sentinel-5P Carbon Monoxide Total Column" CO png 
@@ -199,3 +201,19 @@ sys	0m8,802s
 
 HCCO - FORMALDEHYDE
 time python -m src.processing.run_daily_plots 2023-10-10 2023-10-22 ~/cipc_data/L2/HCHO/2023 PRODUCT formaldehyde_tropospheric_vertical_column "Sentinel-5P HCHO Formaldehyde Tropospheric Vertical Column" formaldehyde_tropospheric_vertical_column png
+
+time python -m src.processing.run_daily_plots 2024-08-15 2024-08-25 ~/cipc_data/L2/HCHO/2024 PRODUCT formaldehyde_tropospheric_vertical_column "Sentinel-5P HCHO Formaldehyde Tropospheric Vertical Column" formaldehyde_tropospheric_vertical_column png
+
+real	2m21,464s
+user	4m31,925s
+sys	0m13,017s
+
+
+O3 - OZONE_TOTAL_VERTICAL_COLUMN
+time python -m src.processing.run_daily_plots 2024-08-15 2024-08-25 ~/cipc_data/L2/O3/2024 PRODUCT ozone_total_vertical_column "Sentinel-5P Ozonte Total Vertical Column" O3 png
+
+time python -m src.processing.run_daily_plots 2023-10-10 2023-10-22 ~/cipc_data/L2/O3/2023 PRODUCT ozone_total_vertical_column "Sentinel-5P Ozonte Total Vertical Column" O3 png
+
+real	2m45,816s
+user	6m38,107s
+sys	0m12,930s
