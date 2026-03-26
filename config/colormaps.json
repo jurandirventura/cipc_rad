@@ -372,5 +372,32 @@
     "#FF7F00",
     "#FF0000"
   ]
+},
+
+"merge_daily_precipitacao": {
+  "title": "Precipitação Diária MERGE",
+  "short_name": "MERGE (mm)",
+  "description": "Precipitação diária acumulada (mm) do produto MERGE/CPTEC-INPE.",
+  "source": "CPTEC/INPE MERGE",
+  "type": "continuous",
+  "unit": "mm",
+  "valid_range": [0, 200],
+  "vmin": 0.0,
+  "vmax": 160.0,
+  "nodata": -9999,
+  "ticks": [0, 10, 20, 40, 60, 80, 100, 120, 140, 160],
+  "colors": [
+    "#4B0082",
+    "#0000FF",
+    "#00BFFF", 
+    "#00FF00", 
+    "#ADFF2F", 
+    "#FFFF00", 
+    "#FFA500",
+    "#FF4500",
+    "#FF0000",
+    "#8B0000",
+    "#800080" 
+  ]
 }
 }
