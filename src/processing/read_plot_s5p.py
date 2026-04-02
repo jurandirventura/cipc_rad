@@ -118,14 +118,6 @@ for f in FILES:
 
     name = os.path.basename(f)
 
-    # m = re.search(r'_(\d{8})T', name)
-
-    # if m:
-    #     date = m.group(1)
-    # else:
-    #     date = "unknown"
-
-
     # tenta padrão Sentinel (com T)
     m = re.search(r'_(\d{8})T', name)
 
@@ -235,34 +227,6 @@ for date_part, day_files in groups.items():
 
         print("Lendo:", FILE)
 
-        # try:
-
-        #     # 🔥 abre com ou sem group
-        #     # if GROUP and GROUP not in ["", "/"]:
-        #     if GROUP.strip() not in ["", "/"]: 
-        #         ds = xr.open_dataset(
-        #             FILE,
-        #             group=GROUP,
-        #             engine="netcdf4",
-        #             decode_cf=False
-        #         )
-        #     else:
-        #         # ds = xr.open_dataset(
-        #         #     FILE,
-        #         #     engine="netcdf4",
-        #         #     decode_cf=False
-        #         # )
-
-        #         ds = xr.open_dataset(
-        #             FILE,
-        #             engine="netcdf4",
-        #             decode_cf=True   # IMPORTANTE
-        #         )                
-            
-            
-
-        # except Exception as e:
-
         try:
 
             # 🔥 NOVO: usa função inteligente
@@ -304,47 +268,6 @@ for date_part, day_files in groups.items():
         lat = lat.values
         lon = lon.values
 
-        # print("Lendo:", FILE)
-
-        # try:
-
-        #     ds = xr.open_dataset(
-        #         FILE,
-        #         group=GROUP,
-        #         engine="netcdf4",
-        #         decode_cf=False
-        #     )
-
-        # except Exception as e:
-
-        #     print("Erro abrindo", FILE)
-        #     print(e)
-        #     continue
-
-
-        # var = ds[VAR_PRODUCT][0]
-        # if "time" in var.dims:
-        #     data = var.isel(time=0)
-        # else:
-        #     data = var
-
-        # # lat = ds["latitude"][0]
-        # # lon = ds["longitude"][0]
-
-        # if "latitude" in ds:
-        #     lat = ds["latitude"]
-        #     lon = ds["longitude"]
-        # elif "lat" in ds:
-        #     lat = ds["lat"]
-        #     lon = ds["lon"]
-        # else:
-        #     raise Exception("Variáveis de latitude/longitude não encontradas")   
-
-        # data = var.astype(float).values
-        # lat = lat.values
-        # lon = lon.values
-
-
         # =========================
         # FILL VALUE
         # =========================
@@ -358,33 +281,6 @@ for date_part, day_files in groups.items():
         # =========================
         # QA FILTER
         # =========================
-
-        # if "qa_value" in ds.variables:
-
-        #     qa = ds["qa_value"][0].values
-        #     data[qa < 0.75] = np.nan
-
-        # =========================
-        # QA FILTER (somente Sentinel). Utiliza dados >= 0.75
-        # Abaixo de 0.75, os dados são descartados (NaN)
-        # =========================
-
-     ###   if VAR_PRODUCT.lower() in ["no2", "co", "o3", "so2", "ch4"]:
-
-        # if "qa_value" in ds.variables:
-
-        #     qa = ds["qa_value"]
-
-        #     if "time" in qa.dims:
-        #         qa = qa.isel(time=0)
-
-        #     qa = qa.values
-
-        #     if qa.shape != data.shape:
-        #         qa = np.squeeze(qa)
-
-        #     data[qa < 0.75] = np.nan
-
 
         if "qa_value" in ds.variables:
 
@@ -407,77 +303,13 @@ for date_part, day_files in groups.items():
                     qa = None
 
             if qa is not None:
-                data[qa < 0.75] = np.nan
-
-
-
-
-
-
-
-
-
-
-
-
-
-        #print(data)
-
+               data[qa < 0.75] = np.nan
+               #data[qa < 0.50] = np.nan
+               #data[qa < 0] = np.nan
 
         # # =========================
         # # INTERPOLAR PARA GRADE REGULAR
         # # =========================
-
-        # valid = ~np.isnan(data)
-
-        # points = np.column_stack((lon[valid], lat[valid]))
-        # values = data[valid]
-
-        # grid_lon = np.linspace(-85, -30, 800)
-        # grid_lat = np.linspace(-60, 15, 800)
-
-        # grid_lon2, grid_lat2 = np.meshgrid(grid_lon, grid_lat)
-
-        # # grid_data = griddata(
-        # #     points,
-        # #     values,
-        # #     (grid_lon2, grid_lat2),
-        # #     method="linear"
-        # # )
-
-        # grid_linear = griddata(points, values, (grid_lon2, grid_lat2), method="linear")
-
-        # grid_nearest = griddata(points, values, (grid_lon2, grid_lat2), method="nearest")
-
-        # grid_data = np.where(np.isnan(grid_linear), grid_nearest, grid_linear)
-
-
-
-        # OLD - só funciona para o Sentinel
-        # valid = ~np.isnan(data)
-
-        # all_lon.append(lon[valid])
-        # all_lat.append(lat[valid])
-        # all_values.append(data[valid])
-
-        ########################################## parte hoje
-        # reprocessamento 20mar2026
-        # valid = np.isfinite(data)
-
-        # # CASO 1: lat/lon 1D (INPE, ERA5, etc)
-        # if lat.ndim == 1 and lon.ndim == 1:
-        #     lon2d, lat2d = np.meshgrid(lon, lat)
-
-        #     all_lon.append(lon2d[valid])
-        #     all_lat.append(lat2d[valid])
-        #     all_values.append(data[valid])
-
-        # # CASO 2: lat/lon 2D (Sentinel)
-        # else:
-        #     all_lon.append(lon[valid])
-        #     all_lat.append(lat[valid])
-        #     all_values.append(data[valid])
-        ############################################
 
         valid = np.isfinite(data)
 
@@ -511,7 +343,6 @@ for date_part, day_files in groups.items():
             all_lon.append(lon2d[valid])
             all_lat.append(lat2d[valid])
             all_values.append(data[valid])        
-
 
 
         # =========================
@@ -595,13 +426,6 @@ for date_part, day_files in groups.items():
             grid_sum[y, x] += values_all[i]
             grid_count[y, x] += 1
 
-    # média
-    # grid_data = np.divide(
-    #     grid_sum,
-    #     grid_count,
-    #     where=grid_count > 0
-    # )
-
     grid_data = np.zeros_like(grid_sum)
 
     np.divide(
@@ -613,55 +437,11 @@ for date_part, day_files in groups.items():
 
     grid_data[grid_count == 0] = np.nan
 
-
-    # grid_data[grid_count == 0] = np.nan
-
     lon2, lat2 = np.meshgrid(lon_bins, lat_bins)
 
     data = grid_data
     lon = lon2
     lat = lat2
-
-
-
-
-
-
-
-
-
-
-    # lon_all = np.concatenate(all_lon)
-    # lat_all = np.concatenate(all_lat)
-    # values_all = np.concatenate(all_values)
-
-    # points = np.column_stack((lon_all, lat_all))
-
-    # grid_lon = np.linspace(-85, -30, 600)
-    # grid_lat = np.linspace(-60, 15, 600)
-
-    # grid_lon2, grid_lat2 = np.meshgrid(grid_lon, grid_lat)
-
-
-    # tree = cKDTree(points)
-
-    # dist, _ = tree.query(
-    #     np.column_stack((grid_lon2.ravel(), grid_lat2.ravel())),
-    #     k=1
-    # )
-
-    # dist = dist.reshape(grid_lon2.shape)
-
-    # grid_data = griddata(points, values_all, (grid_lon2, grid_lat2), method="linear")
-
-    # #max_dist = 1.5  # graus (~150 km)
-    # max_dist = 0.5
-
-    # grid_data[dist > max_dist] = np.nan
-
-    # data = grid_data
-    # lon = grid_lon2
-    # lat = grid_lat2
 
     last_mesh = ax.pcolormesh(
         lon,
