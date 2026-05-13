@@ -1,0 +1,13 @@
+#version: "3.9"
+
+services:
+  cipc_rad:
+    build: .
+    container_name: cipc_rad
+    volumes:
+      - ./output:/app/output
+      - ./config:/app/config
+    environment:
+      - PYTHONUNBUFFERED=1
+    command: >
+      python3 src/processing/run_daily_plots.py

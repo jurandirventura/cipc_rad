@@ -226,18 +226,19 @@
   "source": "Sentinel-5P TROPOMI",
   "type": "continuous",
   "unit": "1",
-  "valid_range": [0.0, 150.0],
+  "valid_range": [0.0, 30.0, 95.0, 155.0, 220.0, 250.0],
   "vmin": 0.0,
-  "vmax": 50.0,
+  "vmax": 250.0,
   "nodata": -9999,
   "colors": [
-    "#000000",
-    "#1a1a1a",
-    "#4d4d4d",
-    "#808080",
-    "#bfbfbf",
-    "#e6e6e6",
-    "#ffffff"
+    "#000080", 
+    "#0000ff", 
+    "#00ffff", 
+    "#00ff00", 
+    "#ffff00", 
+    "#ff8000", 
+    "#ff0000", 
+    "#800000"  
   ]
 },
 
