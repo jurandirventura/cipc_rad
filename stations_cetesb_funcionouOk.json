@@ -1,0 +1,278 @@
+[
+    {
+        "codigo": "290",
+        "nome": "Americana"
+    },
+    {
+        "codigo": "105",
+        "nome": "Americana-Vila Sta Maria"
+    },
+    {
+        "codigo": "107",
+        "nome": "Araçatuba"
+    },
+    {
+        "codigo": "106",
+        "nome": "Araraquara"
+    },
+    {
+        "codigo": "108",
+        "nome": "Bauru"
+    },
+    {
+        "codigo": "90",
+        "nome": "Cambuci"
+    },
+    {
+        "codigo": "89",
+        "nome": "Campinas-Centro"
+    },
+    {
+        "codigo": "276",
+        "nome": "Campinas-Taquaral"
+    },
+    {
+        "codigo": "269",
+        "nome": "Capão Redondo"
+    },
+    {
+        "codigo": "263",
+        "nome": "Carapicuíba"
+    },
+    {
+        "codigo": "248",
+        "nome": "Catanduva"
+    },
+    {
+        "codigo": "94",
+        "nome": "Centro"
+    },
+    {
+        "codigo": "91",
+        "nome": "Cerqueira César"
+    },
+    {
+        "codigo": "73",
+        "nome": "Congonhas"
+    },
+    {
+        "codigo": "87",
+        "nome": "Cubatão-Centro"
+    },
+    {
+        "codigo": "66",
+        "nome": "Cubatão-V.Parisi"
+    },
+    {
+        "codigo": "119",
+        "nome": "Cubatão-Vale do Mogi"
+    },
+    {
+        "codigo": "92",
+        "nome": "Diadema"
+    },
+    {
+        "codigo": "98",
+        "nome": "Grajaú-Parelheiros"
+    },
+    {
+        "codigo": "289",
+        "nome": "Guaratinguetá"
+    },
+    {
+        "codigo": "118",
+        "nome": "Guarulhos"
+    },
+    {
+        "codigo": "264",
+        "nome": "Guarulhos-Paço Municipal"
+    },
+    {
+        "codigo": "279",
+        "nome": "Guarulhos-Pimentas"
+    },
+    {
+        "codigo": "83",
+        "nome": "Ibirapuera"
+    },
+    {
+        "codigo": "262",
+        "nome": "Interlagos"
+    },
+    {
+        "codigo": "266",
+        "nome": "Itaim Paulista"
+    },
+    {
+        "codigo": "97",
+        "nome": "Itaquera"
+    },
+    {
+        "codigo": "259",
+        "nome": "Jacareí"
+    },
+    {
+        "codigo": "110",
+        "nome": "Jaú"
+    },
+    {
+        "codigo": "109",
+        "nome": "Jundiaí"
+    },
+    {
+        "codigo": "84",
+        "nome": "Lapa"
+    },
+    {
+        "codigo": "281",
+        "nome": "Limeira"
+    },
+    {
+        "codigo": "270",
+        "nome": "Marg.Tietê-Pte Remédios"
+    },
+    {
+        "codigo": "111",
+        "nome": "Marília"
+    },
+    {
+        "codigo": "65",
+        "nome": "Mauá"
+    },
+    {
+        "codigo": "287",
+        "nome": "Mogi das Cruzes"
+    },
+    {
+        "codigo": "85",
+        "nome": "Mooca"
+    },
+    {
+        "codigo": "96",
+        "nome": "N.Senhora do Ó"
+    },
+    {
+        "codigo": "120",
+        "nome": "Osasco"
+    },
+    {
+        "codigo": "72",
+        "nome": "Parque D.Pedro II"
+    },
+    {
+        "codigo": "117",
+        "nome": "Paulínia"
+    },
+    {
+        "codigo": "291",
+        "nome": "Paulínia-Sta Terezinha"
+    },
+    {
+        "codigo": "112",
+        "nome": "Paulínia-Sul"
+    },
+    {
+        "codigo": "293",
+        "nome": "Perus"
+    },
+    {
+        "codigo": "99",
+        "nome": "Pinheiros"
+    },
+    {
+        "codigo": "113",
+        "nome": "Piracicaba"
+    },
+    {
+        "codigo": "268",
+        "nome": "Pirassununga"
+    },
+    {
+        "codigo": "114",
+        "nome": "Presidente Prudente"
+    },
+    {
+        "codigo": "288",
+        "nome": "Ribeirão Preto"
+    },
+    {
+        "codigo": "115",
+        "nome": "Ribeirão Preto-Ipiranga"
+    },
+    {
+        "codigo": "292",
+        "nome": "Rio Claro-Jd.Guanabara"
+    },
+    {
+        "codigo": "100",
+        "nome": "S.André-Capuava"
+    },
+    {
+        "codigo": "101",
+        "nome": "S.André-Centro"
+    },
+    {
+        "codigo": "254",
+        "nome": "S.André-Paço Municipal"
+    },
+    {
+        "codigo": "88",
+        "nome": "S.José Campos"
+    },
+    {
+        "codigo": "277",
+        "nome": "S.José Campos-Jd.Satelite"
+    },
+    {
+        "codigo": "236",
+        "nome": "S.Miguel Paulista"
+    },
+    {
+        "codigo": "273",
+        "nome": "Santa Gertrudes"
+    },
+    {
+        "codigo": "63",
+        "nome": "Santana"
+    },
+    {
+        "codigo": "64",
+        "nome": "Santo Amaro"
+    },
+    {
+        "codigo": "258",
+        "nome": "Santos"
+    },
+    {
+        "codigo": "260",
+        "nome": "Santos-Ponta da Praia"
+    },
+    {
+        "codigo": "86",
+        "nome": "São Caetano do Sul"
+    },
+    {
+        "codigo": "116",
+        "nome": "São José do Rio Preto"
+    },
+    {
+        "codigo": "294",
+        "nome": "São Sebastião"
+    },
+    {
+        "codigo": "67",
+        "nome": "Sorocaba"
+    },
+    {
+        "codigo": "103",
+        "nome": "Taboão da Serra"
+    },
+    {
+        "codigo": "256",
+        "nome": "Tatuí"
+    },
+    {
+        "codigo": "280",
+        "nome": "Taubaté"
+    }
+]
