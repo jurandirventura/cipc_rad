@@ -163,8 +163,8 @@ POLUENTES_VALIDOS = [
     "NO2",
     "SO2",
     "CO",
-    "NO",
-    "NOx"
+#    "NO",
+#    "NOx"
 ]
 
 if args.pollutant.lower() == "all":
@@ -540,7 +540,7 @@ for estacao in estacoes:
                         "MP2,5": "MP25",
                         "PM25": "MP25",
                         "PM10": "MP10",
-                        "NOX": "NOx"
+#                        "NOX": "NOx"
                     })
                 )
 
@@ -576,8 +576,8 @@ CORES = {
     "CO": "red",
     "MP10": "purple",
     "MP25": "brown",
-    "NO": "gray",
-    "NOx": "black"
+#    "NO": "gray",
+#    "NOx": "black"
 }
 
 UNIDADES = {
@@ -587,8 +587,8 @@ UNIDADES = {
     "CO": "ppm",
     "MP10": "µg/m³",
     "MP25": "µg/m³",
-    "NO": "µg/m³",
-    "NOx": "µg/m³"
+#    "NO": "µg/m³",
+#    "NOx": "µg/m³"
 }
 
 

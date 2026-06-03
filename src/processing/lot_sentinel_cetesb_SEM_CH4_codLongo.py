@@ -175,6 +175,7 @@ POLUENTES_VALIDOS = [
     "NO2",
     "SO2",
     "CO",
+    "CH4",
 #    "NO",
 #    "NOx"
 ]
@@ -497,11 +498,11 @@ final = pd.concat(
 
 CORES = {
     "O3": "blue",
+    "NO2": "orange",
+    "SO2": "green",
     "CO": "red",
     "MP10": "purple",
     "MP25": "brown",
-    "NO2": "orange",
-    "SO2": "green",
 #    "NO": "gray",
 #    "NOx": "black"
 }
@@ -519,98 +520,6 @@ UNIDADES = {
 
 print("\nPOLUENTES ENCONTRADOS:")
 print(final["pollutant"].unique())
-
-
-# =========================================================
-# Função para leitura dos produtos de satélite
-# =========================================================
-def get_satellite_series(
-    sat_dir,
-    datas_unicas,
-    lat_station,
-    lon_station,
-    delta,
-    scale=1.0
-):
-
-    sat_dates = []
-    sat_values = []
-
-    for data_ref in datas_unicas:
-
-        yyyymmdd = pd.Timestamp(
-            data_ref
-        ).strftime("%Y%m%d")
-
-        arquivos = glob.glob(
-            os.path.join(
-                sat_dir,
-                "**",
-                f"*{yyyymmdd}*.tif"
-            ),
-            recursive=True
-        )
-
-        if not arquivos:
-            continue
-
-        valor = get_satellite_mean(
-            arquivos[0],
-            lat_station,
-            lon_station,
-            delta
-        )
-
-        if np.isfinite(valor):
-
-            valor *= scale
-
-            sat_dates.append(
-                pd.Timestamp(data_ref)
-            )
-
-            sat_values.append(valor)
-
-    return sat_dates, sat_values
-
-
-
-# =========================================================
-# Função para Plot dos produtos de satélite
-# =========================================================
-def plot_satellite_product(
-    ax,
-    produto,
-    datas_unicas,
-    lat_station,
-    lon_station,
-    sat_config,
-    delta
-):
-
-    sat_dates, sat_values = get_satellite_series(
-        sat_config["dir"],
-        datas_unicas,
-        lat_station,
-        lon_station,
-        delta,
-        scale=sat_config["scale"]
-    )
-
-    if len(sat_dates) == 0:
-        return
-
-    ax.plot(
-        sat_dates,
-        sat_values,
-        color=sat_config["color"],
-        linestyle="--",
-        linewidth=1.5,
-        marker=sat_config["marker"],
-        markersize=8,
-        label=sat_config["label"]
-    )
-
 
 # =========================================================
 # LOOP ESTAÇÕES
@@ -662,26 +571,13 @@ for estacao in estacoes:
     print("LAT:", lat_station)
     print("LON:", lon_station)
 
-
-    datas_plot = pd.date_range(
-        DATA_INICIO,
-        DATA_FIM - pd.Timedelta(days=1),
-        freq="D"
-    )
-
-
     # =====================================================
     # FIGURA
     # =====================================================
 
-    # fig, ax = plt.subplots(
-    #     figsize=(16, 7)
-    # )
-
     fig, ax = plt.subplots(
-        figsize=(22, 8)
+        figsize=(16, 7)
     )
-
 
     axes = [ax]
 
@@ -705,17 +601,6 @@ for estacao in estacoes:
             linewidth=1.5,
             marker="o"
         )
-        ax.set_ylabel(
-            f"{pol0} ({UNIDADES.get(pol0,'')})",
-            color=CORES.get(pol0, "blue"),
-            fontsize=12,
-            fontweight="bold"
-        )
-
-        ax.tick_params(
-            axis="y",
-            colors=CORES.get(pol0, "blue")
-        )
 
         # =====================================================
         # CONVERSÃO SATÉLITE - Não utilizado
@@ -731,75 +616,27 @@ for estacao in estacoes:
         # SATÉLITE O3
         # =================================================
 
+
+        # CORES_SAT = {
+        #     "O3_SAT": "cyan",
+        #     "CO_SAT": "magenta",
+        #     "AI_SAT": "darkgreen"
+        #  }
+
         CORES_SAT = {
             "O3_SAT": "cyan",
             "CO_SAT": "magenta",
-            "AI_SAT": "darkviolet",
+            "AI_SAT": "darkgreen",
             "NO2_SAT": "gold",
             "SO2_SAT": "lime",
-            "CH4_SAT": "olive"
+            "CH4_SAT": "deepskyblue"
+
         }
 
-        # =================================================
-        # SATÉLITE - CONFIGURAÇÃO DE CADA PRODUTO
-        # =================================================
-
-        SAT_CONFIG = {
-
-            "O3": {
-                "dir": args.sat_dir_o3,
-                "scale": 1000.0,
-                "color": "cyan",
-                "marker": "*",
-                "label": "O3_SAT*1000"
-            },
-
-            "CO": {
-                "dir": args.sat_dir_co,
-                "scale": 100.0,
-                "color": "magenta",
-                "marker": "*",
-                "label": "CO_SAT*100"
-            },
-
-            "NO2": {
-                "dir": args.sat_dir_no2,
-                "scale": 1e6,
-                "color": "gold",
-                "marker": "^",
-                "label": "NO2_SAT*1e6"
-            },
-
-            "SO2": {
-                "dir": args.sat_dir_so2,
-                "scale": 1e6,
-                "color": "limegreen",
-                "marker": "D",
-                "label": "SO2_SAT*1e6"
-            },
-
-            "AI": {
-                "dir": args.sat_dir_ai,
-                "scale": 100.0,
-                "color": "darkviolet",
-                "marker": "s",
-                "label": "AI_SAT*100"
-            },
-
-            "CH4": {
-                "dir": args.sat_dir_ch4,
-                "scale": 1.0,
-                "color": "olive",
-                "marker": "P",
-                "label": "CH4_SAT"
-            }
-        }
-
-
-        # =================================================
-        # SATÉLITE CO
-        # =================================================
         if pol0 == "O3":
+
+            sat_dates = []
+            sat_values = []
 
             datas_unicas = (
                 sub0["datetime"]
@@ -807,41 +644,107 @@ for estacao in estacoes:
                 .unique()
             )
 
-            plot_satellite_product(
-                ax,
-                "O3",
-                datas_unicas,
-                lat_station,
-                lon_station,
-                SAT_CONFIG["O3"],
-                args.sat_delta
-            )
+            for data_ref in datas_unicas:
 
+                yyyymmdd = pd.Timestamp(
+                    data_ref
+                ).strftime("%Y%m%d")
+
+                pattern_tif = os.path.join(
+                    args.sat_dir_o3,
+                    "**",
+                    f"*{yyyymmdd}*.tif"
+                )
+
+                arquivos_tif = glob.glob(
+                    pattern_tif,
+                    recursive=True
+                )
+
+                if len(arquivos_tif) == 0:
+
+                    print(
+                        "O3 GeoTIFF não encontrado:",
+                        yyyymmdd
+                    )
+
+                    continue
+
+                tif_file = arquivos_tif[0]
+
+                sat_mean = get_satellite_mean(
+                    tif_file,
+                    lat_station,
+                    lon_station,
+                    delta=args.sat_delta
+                )
+
+                # =========================================
+                # NORMALIZA O DADO SATÉLITE O3
+                # =========================================
+ 
+                if np.isfinite(sat_mean):
+
+                    sat_mean = sat_mean * 1000.0
+                    #sat_mean = sat_mean * 1800.0
+
+                    # sat_mean = (
+                    #     sat_mean
+                    #     * MASSA_MOLAR["O3"]
+                    #     * 1e6
+                    #     / ALTURA_CAMADA
+                    # )
+
+                print(
+                    "O3 SAT:",
+                    yyyymmdd,
+                    sat_mean
+                )
+
+                sat_dates.append(
+                    pd.Timestamp(data_ref)
+                )
+
+                sat_values.append(
+                    sat_mean
+                )
+
+            if len(sat_dates) > 0:
+
+                ax.plot(
+                    sat_dates,
+                    sat_values,
+                    color="cyan",
+                    linestyle="--",
+                    linewidth=1.5,
+                    marker="*",
+                    markersize=12,
+                    label="O3_SAT*1000 (mol/m2)"
+                )
+
+        # =================================================
+        # SATÉLITE CO
+        # =================================================
+
+        ax.set_ylabel(
+            f"{pol0} ({UNIDADES.get(pol0,'')})",
+            color=CORES.get(pol0, "blue"),
+            fontsize=12,
+            fontweight="bold"
+        )
+
+        ax.tick_params(
+            axis="y",
+            colors=CORES.get(pol0, "blue")
+        )
 
     # =====================================================
     # DEMAIS POLUENTES
     # =====================================================
 
-    AXIS_SPACING = 0.08
+    offset = 0
 
     for pol in poluentes[1:]:
-
-
-        sub = sub_est[
-            sub_est["pollutant"] == pol
-        ]
-
-        if sub.empty:
-            continue
-
-        num_axes = len(axes)
-
-        ax_new = ax.twinx()
-
-        ax_new.spines["right"].set_position(
-            ("axes", 1 + AXIS_SPACING * num_axes)
-        )
-
 
         sat_dates_ai = []
         sat_values_ai = []
@@ -869,15 +772,91 @@ for estacao in estacoes:
                 .unique()
             )
 
-            plot_satellite_product(
-                ax_new,
-                "CO",
-                datas_unicas,
-                lat_station,
-                lon_station,
-                SAT_CONFIG["CO"],
-                args.sat_delta
-            )
+            for data_ref in datas_unicas:
+
+                yyyymmdd = pd.Timestamp(
+                    data_ref
+                ).strftime("%Y%m%d")
+
+                pattern_tif = os.path.join(
+                    args.sat_dir_co,
+                    "**",
+                    f"*{yyyymmdd}*.tif"
+                )
+
+                arquivos_tif = glob.glob(
+                    pattern_tif,
+                    recursive=True
+                )
+
+                if len(arquivos_tif) == 0:
+
+                    print(
+                        "CO GeoTIFF não encontrado:",
+                        yyyymmdd
+                    )
+
+                    continue
+
+                tif_file = arquivos_tif[0]
+
+                sat_mean = get_satellite_mean(
+                    tif_file,
+                    lat_station,
+                    lon_station,
+                    delta=args.sat_delta
+                )
+
+                # =========================================
+                # NORMALIZA CO SATÉLITE
+                # =========================================
+
+                if np.isfinite(sat_mean):
+
+                    #sat_mean = sat_mean * 100000.0
+                    sat_mean = sat_mean * 100.0
+
+                    # sat_mean = (
+                    #     sat_mean
+                    #     * MASSA_MOLAR["CO"]
+                    #     * 1e6
+                    #     / ALTURA_CAMADA
+                    # )
+
+                print(
+                    "CO SAT:",
+                    yyyymmdd,
+                    sat_mean
+                )
+
+                sat_dates_co.append(
+                    pd.Timestamp(data_ref)
+                )
+
+                sat_values_co.append(
+                    sat_mean
+                )
+
+        sat_dates_no2 = []
+        sat_values_no2 = []
+
+        sat_dates_so2 = []
+        sat_values_so2 = []
+
+        sat_dates_ch4 = []
+        sat_values_ch4 = []
+
+        offset += 0.07
+
+        ax_new = ax.twinx()
+
+        ax_new.spines["right"].set_position(
+            ("axes", 1 + offset)
+        )
+
+        # =================================================
+        # SATÉLITE AEROSOL INDEX
+        # =================================================
 
         if pol in ["MP10", "MP25"]:
 
@@ -887,20 +866,69 @@ for estacao in estacoes:
                 .unique()
             )
 
-            plot_satellite_product(
-                ax_new,
-                "AI",
-                datas_unicas,
-                lat_station,
-                lon_station,
-                SAT_CONFIG["AI"],
-                args.sat_delta
-            )
+            for data_ref in datas_unicas:
+
+                yyyymmdd = pd.Timestamp(
+                    data_ref
+                ).strftime("%Y%m%d")
+
+                pattern_tif = os.path.join(
+                    args.sat_dir_ai,
+                    "**",
+                    f"*{yyyymmdd}*.tif"
+                )
+
+                arquivos_tif = glob.glob(
+                    pattern_tif,
+                    recursive=True
+                )
+
+                if len(arquivos_tif) == 0:
+
+                    print(
+                        "AI GeoTIFF não encontrado:",
+                        yyyymmdd
+                    )
+
+                    continue
+
+                tif_file = arquivos_tif[0]
+
+                sat_mean = get_satellite_mean(
+                    tif_file,
+                    lat_station,
+                    lon_station,
+                    delta=args.sat_delta
+                )
+
+                # =========================================
+                # NORMALIZA AEROSOL INDEX
+                # =========================================
+
+                if np.isfinite(sat_mean):
+
+                    #sat_mean = sat_mean
+                    sat_mean = sat_mean * 100
+
+                print(
+                    "AI SAT:",
+                    yyyymmdd,
+                    sat_mean
+                )
+
+                sat_dates_ai.append(
+                    pd.Timestamp(data_ref)
+                )
+
+                sat_values_ai.append(
+                    sat_mean
+                )
 
 
         # =================================================
         # SATÉLITE NO2
         # =================================================
+
         if pol == "NO2":
 
             datas_unicas = (
@@ -909,19 +937,63 @@ for estacao in estacoes:
                 .unique()
             )
 
-            plot_satellite_product(
-                ax_new,
-                "NO2",
-                datas_unicas,
-                lat_station,
-                lon_station,
-                SAT_CONFIG["NO2"],
-                args.sat_delta
-            )        
+            for data_ref in datas_unicas:
+
+                yyyymmdd = pd.Timestamp(
+                    data_ref
+                ).strftime("%Y%m%d")
+
+                pattern_tif = os.path.join(
+                    args.sat_dir_no2,
+                    "**",
+                    f"*{yyyymmdd}*.tif"
+                )
+
+                arquivos_tif = glob.glob(
+                    pattern_tif,
+                    recursive=True
+                )
+
+                if len(arquivos_tif) == 0:
+
+                    print(
+                        "NO2 GeoTIFF não encontrado:",
+                        yyyymmdd
+                    )
+
+                    continue
+
+                tif_file = arquivos_tif[0]
+
+                sat_mean = get_satellite_mean(
+                    tif_file,
+                    lat_station,
+                    lon_station,
+                    delta=args.sat_delta
+                )
+
+                if np.isfinite(sat_mean):
+
+                    sat_mean = sat_mean * 1000000.0
+
+                print(
+                    "NO2 SAT:",
+                    yyyymmdd,
+                    sat_mean
+                )
+
+                sat_dates_no2.append(
+                    pd.Timestamp(data_ref)
+                )
+
+                sat_values_no2.append(
+                    sat_mean
+                )
 
         # =================================================
         # SATÉLITE SO2
         # =================================================
+
         if pol == "SO2":
 
             datas_unicas = (
@@ -930,15 +1002,131 @@ for estacao in estacoes:
                 .unique()
             )
 
-            plot_satellite_product(
-                ax_new,
-                "SO2",
-                datas_unicas,
-                lat_station,
-                lon_station,
-                SAT_CONFIG["SO2"],
-                args.sat_delta
+            for data_ref in datas_unicas:
+
+                yyyymmdd = pd.Timestamp(
+                    data_ref
+                ).strftime("%Y%m%d")
+
+                pattern_tif = os.path.join(
+                    args.sat_dir_so2,
+                    "**",
+                    f"*{yyyymmdd}*.tif"
+                )
+
+                arquivos_tif = glob.glob(
+                    pattern_tif,
+                    recursive=True
+                )
+
+                if len(arquivos_tif) == 0:
+
+                    print(
+                        "SO2 GeoTIFF não encontrado:",
+                        yyyymmdd
+                    )
+
+                    continue
+
+                tif_file = arquivos_tif[0]
+
+                sat_mean = get_satellite_mean(
+                    tif_file,
+                    lat_station,
+                    lon_station,
+                    delta=args.sat_delta
+                )
+
+                if np.isfinite(sat_mean):
+
+                    sat_mean = sat_mean * 1000000.0
+
+                print(
+                    "SO2 SAT:",
+                    yyyymmdd,
+                    sat_mean
+                )
+
+                sat_dates_so2.append(
+                    pd.Timestamp(data_ref)
+                )
+
+                sat_values_so2.append(
+                    sat_mean
+                )
+
+        # =================================================
+        # SATÉLITE CH4
+        # =================================================
+
+        if pol == "CH4":
+
+            datas_unicas = (
+                sub["datetime"]
+                .dt.normalize()
+                .unique()
             )
+
+            for data_ref in datas_unicas:
+
+                yyyymmdd = pd.Timestamp(
+                    data_ref
+                ).strftime("%Y%m%d")
+
+                pattern_tif = os.path.join(
+                    args.sat_dir_ch4,
+                    "**",
+                    f"*{yyyymmdd}*.tif"
+                )
+
+                arquivos_tif = glob.glob(
+                    pattern_tif,
+                    recursive=True
+                )
+
+                if len(arquivos_tif) == 0:
+
+                    print(
+                        "CH4 GeoTIFF não encontrado:",
+                        yyyymmdd
+                    )
+
+                    continue
+
+                tif_file = arquivos_tif[0]
+
+                sat_mean = get_satellite_mean(
+                    tif_file,
+                    lat_station,
+                    lon_station,
+                    delta=args.sat_delta
+                )
+
+                if np.isfinite(sat_mean):
+
+                    #
+                    # ajuste visual
+                    #
+                    sat_mean = sat_mean / 1000.0
+                    #sat_mean = sat_mean
+
+                print(
+                    "CH4 SAT:",
+                    yyyymmdd,
+                    sat_mean
+                )
+
+                sat_dates_ch4.append(
+                    pd.Timestamp(data_ref)
+                )
+
+                sat_values_ch4.append(
+                    sat_mean
+                )
+
+
+
+
 
         # =================================================
         # ESTAÇÃO
@@ -985,50 +1173,62 @@ for estacao in estacoes:
         axes.append(ax_new)
 
 
-    # =====================================================
-    # CH4 SATÉLITE SEM CETESB
-    # =====================================================
+        # =================================================
+        # AEROSOL INDEX SATÉLITE
+        # =================================================
 
-    sat_dates_ch4, sat_values_ch4 = get_satellite_series(
-        args.sat_dir_ch4,
-        datas_plot,
-        lat_station,
-        lon_station,
-        args.sat_delta,
-        scale=1.0
-    )
+        if pol in ["MP10", "MP25"] and len(sat_dates_ai) > 0:
 
-    if sat_dates_ch4:
+            ax_new.plot(
+                sat_dates_ai,
+                sat_values_ai,
+                color="darkgreen",
+                linestyle="--",
+                linewidth=1.5,
+                marker="s",
+                markersize=8,
+                label="AI_SAT*100"
+            )
 
-        ax_ch4 = ax.twinx()
+        if pol == "NO2" and len(sat_dates_no2) > 0:
 
-        ax_ch4.spines["right"].set_position(
-            ("axes", 1 + AXIS_SPACING * len(axes))
-        )
+            ax_new.plot(
+                sat_dates_no2,
+                sat_values_no2,
+                color="gold",
+                linestyle="--",
+                linewidth=1.5,
+                marker="^",
+                markersize=10,
+                label="NO2_SAT*1e6"
+            )
 
-        ax_ch4.plot(
-            sat_dates_ch4,
-            sat_values_ch4,
-            color="olive",
-            linestyle="--",
-            marker="P",
-            linewidth=2,
-            markersize=8,
-            label="CH4_SAT"
-        )
+        if pol == "SO2" and len(sat_dates_so2) > 0:
 
-        ax_ch4.set_ylabel(
-            "CH4 SAT",
-            color="olive"
-        )
+            ax_new.plot(
+                sat_dates_so2,
+                sat_values_so2,
+                color="lime",
+                linestyle="--",
+                linewidth=1.5,
+                marker="D",
+                markersize=8,
+                label="SO2_SAT*1e6"
+            )
 
-        ax_ch4.tick_params(
-            axis="y",
-            colors="olive"
-        )
 
-        axes.append(ax_ch4)
+        if pol == "CH4" and len(sat_dates_ch4) > 0:
 
+            ax_new.plot(
+                sat_dates_ch4,
+                sat_values_ch4,
+                color="deepskyblue",
+                linestyle="--",
+                linewidth=1.5,
+                marker="P",
+                markersize=9,
+                label="CH4_SAT"
+            )
 
     # =====================================================
     # TÍTULO
