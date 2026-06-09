@@ -16,6 +16,23 @@ import matplotlib.pyplot as plt
 import rasterio
 import re
 
+# Import das funções
+from satellite.indexer import build_satellite_index
+from satellite.timeseries import get_satellite_series
+from satellite.raster_reader import get_satellite_mean
+
+from plotting.plots import plot_satellite_product
+
+from plotting.colors import CORES, UNIDADES
+
+from config import create_sat_config
+
+from cetesb.stations import load_stations
+
+from plotting.legends import build_legend
+
+from cetesb.csv_reader import load_cetesb_data
+
 """
 Plota séries temporais CETESB
 (Médias Diárias)
@@ -160,195 +177,6 @@ parser.add_argument(
 
 args = parser.parse_args()
 
-#================================================================
-# FUNÇÕES
-#================================================================
-#==========================================================
-# Criar índice uma única vez para não fazer muitos globs
-#==========================================================
-def build_satellite_index(sat_dir):
-
-    index = {}
-
-    for root, dirs, files in os.walk(sat_dir):
-
-        for f in files:
-
-            if not f.lower().endswith(".tif"):
-                continue
-
-            fullpath = os.path.join(root, f)
-
-            # procura YYYYMMDD no nome
-            partes = f.split("_")
-
-            for p in partes:
-
-                if len(p) == 8 and p.isdigit():
-
-                    index[p] = fullpath
-                    break
-
-    print(
-        f"Indexados {len(index)} GeoTIFFs em {sat_dir}"
-    )
-
-    return index
-
-# =========================================================
-# Função para leitura dos produtos de satélite
-# =========================================================
-def get_satellite_series(
-    sat_index,
-    datas_unicas,
-    lat_station,
-    lon_station,
-    delta,
-    scale=1.0
-):
-
-    sat_dates = []
-    sat_values = []
-
-    for data_ref in datas_unicas:
-
-        yyyymmdd = pd.Timestamp(
-            data_ref
-        ).strftime("%Y%m%d")
-
-        tif_file = sat_index.get(yyyymmdd)
-
-        if tif_file is None:
-            continue
-
-        valor = get_satellite_mean(
-            tif_file,
-            lat_station,
-            lon_station,
-            delta
-        )
-
-        if np.isfinite(valor):
-
-            sat_dates.append(
-                pd.Timestamp(data_ref)
-            )
-
-            sat_values.append(
-                valor * scale
-            )
-
-    return sat_dates, sat_values
-
-
-
-# =========================================================
-# Função para Plot dos produtos de satélite
-# =========================================================
-def plot_satellite_product(
-    ax,
-    produto,
-    datas_unicas,
-    lat_station,
-    lon_station,
-    sat_config,
-    delta
-):
-
-    sat_dates, sat_values = get_satellite_series(
-        sat_config["index"],
-        datas_unicas,
-        lat_station,
-        lon_station,
-        delta,
-        scale=sat_config["scale"]
-    )
-
-    if len(sat_dates) == 0:
-        return
-
-    ax.plot(
-        sat_dates,
-        sat_values,
-        color=sat_config["color"],
-        linestyle="--",
-        linewidth=1.5,
-        marker=sat_config["marker"],
-        markersize=8,
-        label=sat_config["label"]
-    )
-
-
-# =========================================================
-# FUNÇÃO SATÉLITE
-# =========================================================
-
-def get_satellite_mean(
-    tif_file,
-    lat_station,
-    lon_station,
-    delta=0.5
-):
-
-    try:
-
-        with rasterio.open(tif_file) as src:
-
-            band = src.read(1)
-
-            lon_min = lon_station - delta
-            lon_max = lon_station + delta
-
-            lat_min = lat_station - delta
-            lat_max = lat_station + delta
-
-            row_min, col_min = src.index(
-                lon_min,
-                lat_max
-            )
-
-            row_max, col_max = src.index(
-                lon_max,
-                lat_min
-            )
-
-            r0 = min(row_min, row_max)
-            r1 = max(row_min, row_max)
-
-            c0 = min(col_min, col_max)
-            c1 = max(col_min, col_max)
-
-            subset = band[
-                r0:r1+1,
-                c0:c1+1
-            ]
-
-            nodata = src.nodata
-
-            if nodata is not None:
-
-                subset = subset[
-                    subset != nodata
-                ]
-
-            subset = subset[
-                np.isfinite(subset)
-            ]
-
-            if subset.size == 0:
-
-                return np.nan
-
-            return float(
-                np.nanmean(subset)
-            )
-
-    except Exception as e:
-
-        print("Erro GeoTIFF:", e)
-        return np.nan
-
-
 
 INPUT_DIR = args.input
 OUTPUT_DIR = args.output
@@ -415,9 +243,11 @@ DATA_FIM = (
 # ESTAÇÕES
 # =========================================================
 
-df_st = pd.read_json(
+df_st, stations_dict = load_stations(
     args.stations_file
 )
+
+print(f"{len(stations_dict)} estações carregadas.")
 
 if args.station.lower() == "all":
 
@@ -432,291 +262,61 @@ else:
     estacoes = [str(args.station)]
 
 
+print("Estações solicitadas:", estacoes)
 
 # =========================================================
 # LEITURA CSVs
 # =========================================================
-
-todos = []
-
-for estacao in estacoes:
-
-    for poluente in poluentes:
-
-        pattern = os.path.join(
-            INPUT_DIR,
-            f"{estacao}_{poluente}_*.csv"
-        )
-
-        arquivos = glob.glob(pattern)
-
-        if len(arquivos) == 0:
-
-            print(f"Nenhum arquivo encontrado: {pattern}")
-            continue
-
-        for arquivo in arquivos:
-
-            print(f"Lendo: {arquivo}")
-
-            try:
-
-                df = pd.read_csv(
-                    arquivo,
-                    sep=";"
-                )
-
-            except Exception as e:
-
-                print("Erro leitura:", e)
-                continue
-
-            df.columns = [
-                str(c).strip()
-                for c in df.columns
-            ]
-
-            if "Data" not in df.columns:
-                continue
-
-            df = df[
-                df["Data"].notna()
-            ]
-
-            if df.empty:
-                continue
-
-            if "Hora" not in df.columns:
-                df["Hora"] = "00:00"
-
-            df["Hora"] = (
-                df["Hora"]
-                .astype(str)
-                .str.strip()
-            )
-
-            df.loc[
-                (df["Hora"] == "")
-                |
-                (df["Hora"].str.lower() == "nan"),
-                "Hora"
-            ] = "00:00"
-
-            df["Hora"] = df["Hora"].str[:5]
-
-            mask_24 = (
-                df["Hora"] == "24:00"
-            )
-
-            df.loc[
-                mask_24,
-                "Hora"
-            ] = "00:00"
-
-            df["datetime"] = pd.to_datetime(
-                df["Data"].astype(str)
-                + " "
-                + df["Hora"].astype(str),
-                format="%d/%m/%Y %H:%M",
-                errors="coerce"
-            )
-
-            df.loc[
-                mask_24,
-                "datetime"
-            ] = (
-                df.loc[
-                    mask_24,
-                    "datetime"
-                ]
-                + pd.Timedelta(days=1)
-            )
-
-            df = df[
-                df["datetime"].notna()
-            ]
-
-            if df.empty:
-                continue
-
-            df = df[
-                (df["datetime"] >= DATA_INICIO)
-                &
-                (df["datetime"] <= DATA_FIM)
-            ]
-
-            if df.empty:
-                continue
-
-            if "Valor Diário" not in df.columns:
-                continue
-
-            df["Valor Diário"] = (
-                df["Valor Diário"]
-                .astype(str)
-                .str.replace(",", ".", regex=False)
-            )
-
-            df["Valor Diário"] = pd.to_numeric(
-                df["Valor Diário"],
-                errors="coerce"
-            )
-
-            df = df[
-                df["Valor Diário"].notna()
-            ]
-
-            if df.empty:
-                continue
-
-            if "estacao_nome" in df.columns:
-
-                nomes_validos = (
-                    df["estacao_nome"]
-                    .dropna()
-                )
-
-                if len(nomes_validos) > 0:
-
-                    nome_est = nomes_validos.iloc[0]
-
-                else:
-
-                    nome_est = str(estacao)
-
-            else:
-
-                nome_est = str(estacao)
-
-            df["station_name"] = nome_est
-
-            if "poluente" in df.columns:
-
-                df["pollutant"] = (
-                    df["poluente"]
-                    .astype(str)
-                    .str.strip()
-                    .str.upper()
-                )
-
-                df["pollutant"] = (
-                    df["pollutant"]
-                    .replace({
-                        "MP2.5": "MP25",
-                        "MP2,5": "MP25",
-                        "PM25": "MP25",
-                        "PM10": "MP10",
-#                        "NOX": "NOx"
-                    })
-                )
-
-            else:
-
-                df["pollutant"] = poluente
-
-            todos.append(df)
-
-# =========================================================
-# CONCATENA
-# =========================================================
-
-if len(todos) == 0:
-
-    raise Exception(
-        "Nenhum dado encontrado."
-    )
-
-final = pd.concat(
-    todos,
-    ignore_index=True
+final = load_cetesb_data(
+    input_dir=INPUT_DIR,
+    estacoes=estacoes,
+    poluentes=poluentes,
+    data_inicio=DATA_INICIO,
+    data_fim=DATA_FIM
 )
+
+ESTACOES_GRUPO = {
+    codigo: grupo
+    for codigo, grupo in
+    final.groupby("estacao_codigo")
+}
 
 # =========================================================
 # CORES
 # =========================================================
 
-CORES = {
-    "O3": "blue",
-    "CO": "red",
-    "MP10": "purple",
-    "MP25": "brown",
-    "NO2": "orange",
-    "SO2": "green",
-#    "NO": "gray",
-#    "NOx": "black"
-}
+# CORES = {
+#     "O3": "blue",
+#     "CO": "red",
+#     "MP10": "purple",
+#     "MP25": "brown",
+#     "NO2": "orange",
+#     "SO2": "green",
+# #    "NO": "gray",
+# #    "NOx": "black"
+# }
 
-UNIDADES = {
-    "O3": "µg/m³",
-    "NO2": "µg/m³",
-    "SO2": "µg/m³",
-    "CO": "ppm",
-    "MP10": "µg/m³",
-    "MP25": "µg/m³",
-#    "NO": "µg/m³",
-#    "NOx": "µg/m³"
-}
+# UNIDADES = {
+#     "O3": "µg/m³",
+#     "NO2": "µg/m³",
+#     "SO2": "µg/m³",
+#     "CO": "ppm",
+#     "MP10": "µg/m³",
+#     "MP25": "µg/m³",
+# #    "NO": "µg/m³",
+# #    "NOx": "µg/m³"
+# }
 
 # =================================================
 # SATÉLITE - CONFIGURAÇÃO DE CADA PRODUTO
 # =================================================
 
-SAT_CONFIG = {
-
-    "O3": {
-        "index": SAT_INDEX["O3"],
-        "scale": 1000.0,
-        "color": "cyan",
-        "marker": "*",
-        "label": "O3_SAT*1000"
-    },
-
-    "CO": {
-        "index": SAT_INDEX["CO"],
-        "scale": 100.0,
-        "color": "magenta",
-        "marker": "*",
-        "label": "CO_SAT*100"
-    },
-
-    "NO2": {
-        "index": SAT_INDEX["NO2"],
-        "scale": 1e6,
-        "color": "gold",
-        "marker": "^",
-        "label": "NO2_SAT*1e6"
-    },
-
-    "SO2": {
-        "index": SAT_INDEX["SO2"],
-        "scale": 1e6,
-        "color": "limegreen",
-        "marker": "D",
-        "label": "SO2_SAT*1e6"
-    },
-
-    "AI": {
-        "index": SAT_INDEX["AI"],
-        "scale": 100.0,
-        "color": "darkviolet",
-        "marker": "s",
-        "label": "AI_SAT*100"
-    },
-
-    "CH4": {
-        "index": SAT_INDEX["CH4"],
-        "scale": 1.0,
-        "color": "olive",
-        "marker": "P",
-        "label": "CH4_SAT"
-    }
-}
-
+SAT_CONFIG = create_sat_config(
+    SAT_INDEX
+)
 
 print("\nPOLUENTES ENCONTRADOS:")
 print(final["pollutant"].unique())
-
-
 
 
 # =========================================================
@@ -729,10 +329,16 @@ for estacao in estacoes:
     print("PLOTANDO ESTAÇÃO:", estacao)
     print("===================================")
 
-    sub_est = final[
-        final["estacao_codigo"].astype(str)
-        == str(estacao)
-    ]
+    # estacoes_grupo = {
+    #     codigo: grupo
+    #     for codigo, grupo in
+    #     final.groupby("estacao_codigo")
+    # }
+
+    sub_est = ESTACOES_GRUPO.get(estacao)
+
+    if sub_est is None:
+        continue
 
     if sub_est.empty:
 
@@ -748,27 +354,22 @@ for estacao in estacoes:
     # LAT/LON
     # =====================================================
 
-    st_info = df_st[
-        df_st["codigo"].astype(str)
-        == str(estacao)
-    ]
+    codigo_estacao = int(estacao)
 
-    if st_info.empty:
+    if codigo_estacao not in stations_dict:
 
-        print("Sem lat/lon.")
+        print(
+            f"Estação {estacao} não encontrada em lista_estacoes.json"
+        )
         continue
 
-    lat_station = float(
-        st_info.iloc[0]["latitude"]
-    )
+    st_info = stations_dict[codigo_estacao]
 
-    lon_station = float(
-        st_info.iloc[0]["longitude"]
-    )
+    lat_station = float(st_info["latitude"])
+    lon_station = float(st_info["longitude"])
 
     print("LAT:", lat_station)
     print("LON:", lon_station)
-
 
     datas_plot = pd.date_range(
         DATA_INICIO,
@@ -1064,57 +665,12 @@ for estacao in estacoes:
     # =====================================================
     # LEGENDA
     # =====================================================
-    legend_dict = {}
 
-    for a in axes:
-
-        for ln in a.get_lines():
-
-            label = ln.get_label()
-
-            if label.startswith("_"):
-                continue
-
-            #legend_dict[label] = ln    
-            legend_dict.setdefault(label, ln)
-
-    legend_order = [
-        "O3",
-        "O3_SAT*1000",
-
-        "MP25",
-        "MP10",
-        "AI_SAT*100",
-
-        "NO2",
-        "NO2_SAT*1e6",
-
-        "SO2",
-        "SO2_SAT*1e6",
-
-        "CO",
-        "CO_SAT*100",
-
-        "CH4_SAT"
-    ]
-
-    # Monta Legenda
-    lines = []
-    labels = []
-
-    for label in legend_order:
-
-        if label in legend_dict:
-
-            lines.append(legend_dict[label])
-            labels.append(label)
-
-    ax.legend(
-        lines,
-        labels,
-        loc="upper left",
-        fontsize=9
+    build_legend(
+        ax,
+        axes
     )
+
 
     # =====================================================
     # SAVE
@@ -1143,7 +699,7 @@ for estacao in estacoes:
 
 
 
-# # Funcionando bem. Gerado conjunto de gráficos. Até 04/jun/2026
+# # Versão que funcionou bem com os módulos de satélite
 # # Plota dados da CETESB - Médias Diárias 
 # # O3, MP2.5, MP10, CO, NO2, SO2
 # # e dados do satélite Sentinel-5P para os gases 
@@ -1159,6 +715,16 @@ for estacao in estacoes:
 # import pandas as pd
 # import matplotlib.pyplot as plt
 # import rasterio
+# import re
+
+# # Import das funções
+# from satellite.indexer import build_satellite_index
+# from satellite.timeseries import get_satellite_series
+# from satellite.raster_reader import get_satellite_mean
+
+# from plotting.plots import plot_satellite_product
+
+# from plotting.colors import CORES, UNIDADES
 
 # """
 # Plota séries temporais CETESB
@@ -1304,6 +870,7 @@ for estacao in estacoes:
 
 # args = parser.parse_args()
 
+
 # INPUT_DIR = args.input
 # OUTPUT_DIR = args.output
 
@@ -1311,6 +878,19 @@ for estacao in estacoes:
 #     OUTPUT_DIR,
 #     exist_ok=True
 # )
+
+# #==========================================================
+# # Índice para função satélite
+# #==========================================================
+# SAT_INDEX = {
+#     "O3": build_satellite_index(args.sat_dir_o3),
+#     "CO": build_satellite_index(args.sat_dir_co),
+#     "AI": build_satellite_index(args.sat_dir_ai),
+#     "NO2": build_satellite_index(args.sat_dir_no2),
+#     "SO2": build_satellite_index(args.sat_dir_so2),
+#     "CH4": build_satellite_index(args.sat_dir_ch4)
+# }
+
 
 # # =========================================================
 # # POLUENTES
@@ -1360,6 +940,23 @@ for estacao in estacoes:
 #     args.stations_file
 # )
 
+# # =========================================================
+# # Índice das estações
+# # =========================================================
+
+# df_st["codigo"] = pd.to_numeric(
+#     df_st["codigo"],
+#     errors="coerce"
+# )
+
+# stations_dict = (
+#     df_st
+#     .set_index("codigo")
+#     .to_dict("index")
+# )
+
+# print(f"{len(stations_dict)} estações carregadas.")
+
 # if args.station.lower() == "all":
 
 #     estacoes = (
@@ -1372,74 +969,8 @@ for estacao in estacoes:
 
 #     estacoes = [str(args.station)]
 
-# # =========================================================
-# # FUNÇÃO SATÉLITE
-# # =========================================================
 
-# def get_satellite_mean(
-#     tif_file,
-#     lat_station,
-#     lon_station,
-#     delta=0.5
-# ):
-
-#     try:
-
-#         with rasterio.open(tif_file) as src:
-
-#             band = src.read(1)
-
-#             lon_min = lon_station - delta
-#             lon_max = lon_station + delta
-
-#             lat_min = lat_station - delta
-#             lat_max = lat_station + delta
-
-#             row_min, col_min = src.index(
-#                 lon_min,
-#                 lat_max
-#             )
-
-#             row_max, col_max = src.index(
-#                 lon_max,
-#                 lat_min
-#             )
-
-#             r0 = min(row_min, row_max)
-#             r1 = max(row_min, row_max)
-
-#             c0 = min(col_min, col_max)
-#             c1 = max(col_min, col_max)
-
-#             subset = band[
-#                 r0:r1+1,
-#                 c0:c1+1
-#             ]
-
-#             nodata = src.nodata
-
-#             if nodata is not None:
-
-#                 subset = subset[
-#                     subset != nodata
-#                 ]
-
-#             subset = subset[
-#                 np.isfinite(subset)
-#             ]
-
-#             if subset.size == 0:
-
-#                 return np.nan
-
-#             return float(
-#                 np.nanmean(subset)
-#             )
-
-#     except Exception as e:
-
-#         print("Erro GeoTIFF:", e)
-#         return np.nan
+# print("Estações solicitadas:", estacoes)
 
 # # =========================================================
 # # LEITURA CSVs
@@ -1639,31 +1170,42 @@ for estacao in estacoes:
 #     ignore_index=True
 # )
 
+# final["estacao_codigo"] = (
+#     final["estacao_codigo"]
+#     .astype(str)
+# )        
+
+# ESTACOES_GRUPO = {
+#     codigo: grupo
+#     for codigo, grupo in
+#     final.groupby("estacao_codigo")
+# }
+
 # # =========================================================
 # # CORES
 # # =========================================================
 
-# CORES = {
-#     "O3": "blue",
-#     "CO": "red",
-#     "MP10": "purple",
-#     "MP25": "brown",
-#     "NO2": "orange",
-#     "SO2": "green",
-# #    "NO": "gray",
-# #    "NOx": "black"
-# }
+# # CORES = {
+# #     "O3": "blue",
+# #     "CO": "red",
+# #     "MP10": "purple",
+# #     "MP25": "brown",
+# #     "NO2": "orange",
+# #     "SO2": "green",
+# # #    "NO": "gray",
+# # #    "NOx": "black"
+# # }
 
-# UNIDADES = {
-#     "O3": "µg/m³",
-#     "NO2": "µg/m³",
-#     "SO2": "µg/m³",
-#     "CO": "ppm",
-#     "MP10": "µg/m³",
-#     "MP25": "µg/m³",
-# #    "NO": "µg/m³",
-# #    "NOx": "µg/m³"
-# }
+# # UNIDADES = {
+# #     "O3": "µg/m³",
+# #     "NO2": "µg/m³",
+# #     "SO2": "µg/m³",
+# #     "CO": "ppm",
+# #     "MP10": "µg/m³",
+# #     "MP25": "µg/m³",
+# # #    "NO": "µg/m³",
+# # #    "NOx": "µg/m³"
+# # }
 
 # # =================================================
 # # SATÉLITE - CONFIGURAÇÃO DE CADA PRODUTO
@@ -1672,7 +1214,7 @@ for estacao in estacoes:
 # SAT_CONFIG = {
 
 #     "O3": {
-#         "dir": args.sat_dir_o3,
+#         "index": SAT_INDEX["O3"],
 #         "scale": 1000.0,
 #         "color": "cyan",
 #         "marker": "*",
@@ -1680,7 +1222,7 @@ for estacao in estacoes:
 #     },
 
 #     "CO": {
-#         "dir": args.sat_dir_co,
+#         "index": SAT_INDEX["CO"],
 #         "scale": 100.0,
 #         "color": "magenta",
 #         "marker": "*",
@@ -1688,7 +1230,7 @@ for estacao in estacoes:
 #     },
 
 #     "NO2": {
-#         "dir": args.sat_dir_no2,
+#         "index": SAT_INDEX["NO2"],
 #         "scale": 1e6,
 #         "color": "gold",
 #         "marker": "^",
@@ -1696,7 +1238,7 @@ for estacao in estacoes:
 #     },
 
 #     "SO2": {
-#         "dir": args.sat_dir_so2,
+#         "index": SAT_INDEX["SO2"],
 #         "scale": 1e6,
 #         "color": "limegreen",
 #         "marker": "D",
@@ -1704,7 +1246,7 @@ for estacao in estacoes:
 #     },
 
 #     "AI": {
-#         "dir": args.sat_dir_ai,
+#         "index": SAT_INDEX["AI"],
 #         "scale": 100.0,
 #         "color": "darkviolet",
 #         "marker": "s",
@@ -1712,7 +1254,7 @@ for estacao in estacoes:
 #     },
 
 #     "CH4": {
-#         "dir": args.sat_dir_ch4,
+#         "index": SAT_INDEX["CH4"],
 #         "scale": 1.0,
 #         "color": "olive",
 #         "marker": "P",
@@ -1726,97 +1268,6 @@ for estacao in estacoes:
 
 
 # # =========================================================
-# # Função para leitura dos produtos de satélite
-# # =========================================================
-# def get_satellite_series(
-#     sat_dir,
-#     datas_unicas,
-#     lat_station,
-#     lon_station,
-#     delta,
-#     scale=1.0
-# ):
-
-#     sat_dates = []
-#     sat_values = []
-
-#     for data_ref in datas_unicas:
-
-#         yyyymmdd = pd.Timestamp(
-#             data_ref
-#         ).strftime("%Y%m%d")
-
-#         arquivos = glob.glob(
-#             os.path.join(
-#                 sat_dir,
-#                 "**",
-#                 f"*{yyyymmdd}*.tif"
-#             ),
-#             recursive=True
-#         )
-
-#         if not arquivos:
-#             continue
-
-#         valor = get_satellite_mean(
-#             arquivos[0],
-#             lat_station,
-#             lon_station,
-#             delta
-#         )
-
-#         if np.isfinite(valor):
-
-#             valor *= scale
-
-#             sat_dates.append(
-#                 pd.Timestamp(data_ref)
-#             )
-
-#             sat_values.append(valor)
-
-#     return sat_dates, sat_values
-
-
-
-# # =========================================================
-# # Função para Plot dos produtos de satélite
-# # =========================================================
-# def plot_satellite_product(
-#     ax,
-#     produto,
-#     datas_unicas,
-#     lat_station,
-#     lon_station,
-#     sat_config,
-#     delta
-# ):
-
-#     sat_dates, sat_values = get_satellite_series(
-#         sat_config["dir"],
-#         datas_unicas,
-#         lat_station,
-#         lon_station,
-#         delta,
-#         scale=sat_config["scale"]
-#     )
-
-#     if len(sat_dates) == 0:
-#         return
-
-#     ax.plot(
-#         sat_dates,
-#         sat_values,
-#         color=sat_config["color"],
-#         linestyle="--",
-#         linewidth=1.5,
-#         marker=sat_config["marker"],
-#         markersize=8,
-#         label=sat_config["label"]
-#     )
-
-
-# # =========================================================
 # # LOOP ESTAÇÕES
 # # =========================================================
 
@@ -1826,10 +1277,16 @@ for estacao in estacoes:
 #     print("PLOTANDO ESTAÇÃO:", estacao)
 #     print("===================================")
 
-#     sub_est = final[
-#         final["estacao_codigo"].astype(str)
-#         == str(estacao)
-#     ]
+#     # estacoes_grupo = {
+#     #     codigo: grupo
+#     #     for codigo, grupo in
+#     #     final.groupby("estacao_codigo")
+#     # }
+
+#     sub_est = ESTACOES_GRUPO.get(estacao)
+
+#     if sub_est is None:
+#         continue
 
 #     if sub_est.empty:
 
@@ -1845,27 +1302,22 @@ for estacao in estacoes:
 #     # LAT/LON
 #     # =====================================================
 
-#     st_info = df_st[
-#         df_st["codigo"].astype(str)
-#         == str(estacao)
-#     ]
+#     codigo_estacao = int(estacao)
 
-#     if st_info.empty:
+#     if codigo_estacao not in stations_dict:
 
-#         print("Sem lat/lon.")
+#         print(
+#             f"Estação {estacao} não encontrada em lista_estacoes.json"
+#         )
 #         continue
 
-#     lat_station = float(
-#         st_info.iloc[0]["latitude"]
-#     )
+#     st_info = stations_dict[codigo_estacao]
 
-#     lon_station = float(
-#         st_info.iloc[0]["longitude"]
-#     )
+#     lat_station = float(st_info["latitude"])
+#     lon_station = float(st_info["longitude"])
 
 #     print("LAT:", lat_station)
 #     print("LON:", lon_station)
-
 
 #     datas_plot = pd.date_range(
 #         DATA_INICIO,
@@ -2092,8 +1544,10 @@ for estacao in estacoes:
 #     # CH4 SATÉLITE SEM CETESB
 #     # =====================================================
 
+#     datas_unicas = final["datetime"].dt.normalize().unique()
+
 #     sat_dates_ch4, sat_values_ch4 = get_satellite_series(
-#         args.sat_dir_ch4,
+#         SAT_INDEX["CH4"],
 #         datas_plot,
 #         lat_station,
 #         lon_station,
@@ -2232,4 +1686,3 @@ for estacao in estacoes:
 #     print("===================================")
 
 #     plt.close()
-
