@@ -24,12 +24,12 @@ USO
 
 python pdf_cetesb_to_csv.py \
     --pdf relatorio.pdf \
-    --output ./csvs \
+    --output /home/jurandir/cipc_output/cetesb/media_diaria_csvs \
     --list-stations /home/jurandir/cipc_data/cetesb/lista_estacoes.json
 
 python src/download/cetesb/converte_relCETESB_PDF2CSV.py \
     --pdf /home/jurandir/cipc_data/cetesb/relatorio_geral_15a25ago2024_all.pdf \
-    --output ./csvs \ 
+    --output /home/jurandir/cipc_output/cetesb/media_diaria_csvs \ 
     --list-stations /home/jurandir/cipc_data/cetesb/lista_estacoes.json
 
 ==================================================
