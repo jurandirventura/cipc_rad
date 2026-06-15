@@ -9,7 +9,8 @@ def create_sat_config(sat_index):
             "scale": 1000.0,
             "color": "cyan",
             "marker": "*",
-            "label": "O3_SAT*1000"
+            "label": "O3_SAT*1000",
+            "unit": "mol/m2",
         },
 
         "CO": {
@@ -17,7 +18,8 @@ def create_sat_config(sat_index):
             "scale": 100.0,
             "color": "magenta",
             "marker": "*",
-            "label": "CO_SAT*100"
+            "label": "CO_SAT*100",
+            "unit": "mol/m2",
         },
 
         "NO2": {
@@ -25,7 +27,8 @@ def create_sat_config(sat_index):
             "scale": 1e6,
             "color": "gold",
             "marker": "^",
-            "label": "NO2_SAT*1e6"
+            "label": "NO2_SAT*1e6",
+            "unit": "mol/m2",
         },
 
         "SO2": {
@@ -33,7 +36,8 @@ def create_sat_config(sat_index):
             "scale": 1e6,
             "color": "limegreen",
             "marker": "D",
-            "label": "SO2_SAT*1e6"
+            "label": "SO2_SAT*1e6",
+            "unit": "mol/m2",
         },
 
         "AI": {
@@ -41,14 +45,18 @@ def create_sat_config(sat_index):
             "scale": 100.0,
             "color": "darkviolet",
             "marker": "s",
-            "label": "AI_SAT*100"
+            "label": "AI_SAT*100",
+            "unit": "",
         },
 
         "CH4": {
             "index": sat_index["CH4"],
-            "scale": 1.0,
+            "scale": 0.05,
             "color": "olive",
             "marker": "P",
-            "label": "CH4_SAT"
+            "label": "CH4_SAT*0.05",
+            "unit": "ppb",
+
+
         }
     }
