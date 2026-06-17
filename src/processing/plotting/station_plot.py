@@ -238,6 +238,17 @@ def plot_station(
         )
     )
 
+    # print("********************************************")
+    # print("\n===== CH4 =====")
+    # print("DATAS:", sat_dates_ch4)
+    # print("VALORES:", sat_values_ch4)
+
+    # if len(sat_values_ch4) > 0:
+    #     print("MIN:", min(sat_values_ch4))
+    #     print("MAX:", max(sat_values_ch4))
+    # print("********************************************")
+
+
     if sat_dates_ch4:
 
         ax_ch4 = ax.twinx()
