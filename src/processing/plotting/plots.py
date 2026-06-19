@@ -34,29 +34,7 @@ def plot_satellite_product(
         print("MIN:", min(sat_values))
         print("MAX:", max(sat_values))
 
-    print("********************************************")
-
-    # print("********************************************")
-    # print("\n===== SO2 =====")
-    # print("VALORES:", sat_values)
-
-    # if len(sat_values) > 0:
-    #     print("MIN:", min(sat_values))
-    #     print("MAX:", max(sat_values))
-
-    # print("********************************************")
-    # print("\n===== AI =====")
-    # print("VALORES:", sat_values)
-
-    # if len(sat_values) > 0:
-    #     print("MIN:", min(sat_values))
-    #     print("MAX:", max(sat_values))
-
-
-    # if len(sat_dates) == 0:
-    #     return
-    # print("********************************************")
-
+    print("**********************************************")
 
     ax.plot(
         sat_dates,
