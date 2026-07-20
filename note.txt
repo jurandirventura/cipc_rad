@@ -217,3 +217,31 @@ time python -m src.processing.run_daily_plots 2023-10-10 2023-10-22 ~/cipc_data/
 real	2m45,816s
 user	6m38,107s
 sys	0m12,930s
+
+
+Estrutura para GOES-AOD
+
+Estrutura
+
+src/
+└── goes/
+    ├── download_goes_aod.py
+    ├── process_goes_aod.py
+    ├── interpolate_goes.py
+    ├── export_geotiff.py
+    └── goes_utils.pyEstrutura
+
+
+
+Organização dos dados
+Ficaria compatível com o restante do CIPC.
+
+DATA/
+
+└── L2
+    └── GOES_AOD
+        ├── 2023
+        │     OR_ABI-L2-AODF-M6_G16_s20232830010206...
+        │     OR_ABI-L2-AODF-M6_G16_s20232830020206...
+        │     ...
+        └── 2024
