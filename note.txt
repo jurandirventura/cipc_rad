@@ -245,3 +245,57 @@ DATA/
         │     OR_ABI-L2-AODF-M6_G16_s20232830020206...
         │     ...
         └── 2024
+
+centralizar a interpretação do nome do arquivo GOES. Em vez de colocar expressões regulares em vários lugares, você faz isso uma única vez.
+
+Por exemplo, seu arquivo é:
+
+OR_ABI-L2-AODF-M6_G16_s20242280000206_e20242280009514_c20242280014313.nc
+
+Desmembrando:
+
+OR_ABI-L2-AODF-M6_G16_s20242280000206_e20242280009514_c20242280014313.nc
+          │     │      │
+          │     │      └── Satélite G16
+          │     └──────── Produto AODF
+          └────────────── ABI L2
+
+s20242280000206
+ │││
+ ││└── dia juliano = 228
+ │└── ano = 2024
+ └── início da observação
+
+
+- Fluxo completo sugerido...
+process_goes_aod.py
+        │
+        ▼
+open_dataset()
+        │
+        ▼
+read_aod()
+        │
+        ▼
+read_quality_flag()
+        │
+        ▼
+apply_quality_mask()
+        │
+        ▼
+read_projection()
+        │
+        ▼
+goes_xy_to_latlon()
+        │
+        ▼
+crop_bbox()
+        │
+        ▼
+interpolate_goes.py
+        │
+        ▼
+export_geotiff.py
+        │
+        ▼
+viewer/

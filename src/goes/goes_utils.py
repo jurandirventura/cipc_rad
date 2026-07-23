@@ -7,7 +7,8 @@ GOES-16 ABI L2 AOD.
 
 from pathlib import Path
 import numpy as np
-
+import re
+from datetime import datetime
 import xarray as xr
 
 
@@ -178,10 +179,204 @@ def create_output_filename(input_file, output_dir):
 def get_metadata(ds):
     pass
 
-def list_goes_files(directory):
 
-    directory = Path(directory)
 
-    return sorted(
-        directory.glob("*.nc")
+def list_goes_files(
+    directory,
+    start_date,
+    end_date
+):
+
+    arquivos = []
+
+    # for file in sorted(Path(directory).glob("*.nc")):
+    for file in Path(directory).rglob("*.nc"):
+        info = parse_goes_filename(
+            file.name
+        )
+
+        # info = parse_goes_filename(file.name)
+
+        # print(file.name)
+        # print(info["datetime"])
+        # print(start_date)
+        # print(end_date)        
+
+        # # if start_date <= info["datetime"] <= end_date:
+        # #     arquivos.append(file)
+
+        # if start_date.date() <= info["start"].date() <= end_date.date():
+        #     arquivos.append(file)            
+
+        print(file.name)
+        print(info["start"])
+        print(start_date)
+        print(end_date)          
+
+        if start_date.date() <= info["start"].date() <= end_date.date():
+            arquivos.append(file)
+
+
+    return arquivos
+
+
+def goes_time_to_datetime(timestr):
+    """
+    Converte tempo GOES (YYYYJJJHHMMSS)
+    para datetime.
+    """
+
+    year = int(timestr[0:4])
+    julian = int(timestr[4:7])
+    hour = int(timestr[7:9])
+    minute = int(timestr[9:11])
+    second = int(timestr[11:13])
+
+    dt = datetime.strptime(
+        f"{year} {julian}",
+        "%Y %j"
     )
+
+    return dt.replace(
+        hour=hour,
+        minute=minute,
+        second=second
+    )
+
+
+# ==========================================================
+# Extrai informações do nome do arquivo GOES
+# ==========================================================
+from pathlib import Path
+
+def parse_goes_filename(filename):
+    """
+    Extrai informações do nome do arquivo GOES.
+
+    Exemplo:
+    OR_ABI-L2-AODF-M6_G16_s20242361640205_e20242361649513_c20242361654253.nc
+    """
+
+    nome = Path(filename).stem
+
+    partes = nome.split("_")
+
+    # ['OR', 'ABI-L2-AODF-M6', 'G16',
+    #  's20242361640205',
+    #  'e20242361649513',
+    #  'c20242361654253']
+
+    produto = partes[1].split("-")[2]      # AODF
+
+    satelite = partes[2]                   # G16
+
+    start = goes_time_to_datetime(
+        partes[3][1:]                      # remove o 's'
+    )
+
+    end = goes_time_to_datetime(
+        partes[4][1:]                      # remove o 'e'
+    )
+
+    created = goes_time_to_datetime(
+        partes[5][1:]                      # remove o 'c'
+    )
+
+    return {
+
+        "product": produto,
+
+        "satellite": satelite,
+
+        "start": start,
+
+        "end": end,
+
+        "created": created,
+
+        "year": start.year,
+
+        "julian": start.timetuple().tm_yday
+    }
+
+# def parse_goes_filename(filename):
+#     """
+#     Extrai informações do nome do arquivo GOES.
+
+#     Parameters
+#     ----------
+#     filename : str
+
+#     Returns
+#     -------
+#     dict
+#     """
+
+#     # regex = re.compile(
+#     #     r"OR_ABI-L2-(?P<product>[A-Z0-9]+)-.*?"
+#     #     r"_(?P<satellite>G\d{2})"
+#     #     r"_s(?P<year>\d{4})(?P<julian>\d{3})"
+#     #     r"(?P<hour>\d{2})(?P<minute>\d{2})(?P<second>\d{2})"
+#     # )
+
+#     # regex = re.compile(
+#     #     r"OR_ABI-L2-(?P<product>[A-Z0-9]+)-.*?"
+#     #     r"_(?P<satellite>G\d{2})"
+#     #     r"_s(?P<start>\d{13})"
+#     #     r"_e(?P<end>\d{13})"
+#     #     r"_c(?P<created>\d{13})"
+#     # )    
+
+#     regex = re.compile(
+#         r"^OR_ABI-L2-"
+#         r"(?P<product>[A-Z0-9]+)"
+#         r"-M\d+_"
+#         r"(?P<satellite>G\d{2})"
+#         r"_s(?P<start>\d{13})"
+#         r"_e(?P<end>\d{13})"
+#         r"_c(?P<created>\d{13})"
+#         r"\.nc$"
+#     )
+
+#     # m = regex.search(filename)
+
+#     m = regex.match(filename)
+
+#     if m is None:
+
+#         raise ValueError(
+#             f"Nome inválido:\n{filename}"
+#         )
+
+#     start = goes_time_to_datetime(
+#         m.group("start")
+#     )
+
+#     end = goes_time_to_datetime(
+#         m.group("end")
+#     )
+
+#     created = goes_time_to_datetime(
+#         m.group("created")
+#     )
+
+
+#     return {
+
+#         "product": m.group("product"),
+
+#         "satellite": m.group("satellite"),
+
+#         "start": start,
+
+#         "end": end,
+
+#         "created": created,
+
+#         "year": start.year,
+
+#         "julian": start.timetuple().tm_yday
+#     }
+
+
+
