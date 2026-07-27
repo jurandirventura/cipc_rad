@@ -12,6 +12,17 @@ from .goes_utils import (
     open_dataset,
     list_goes_files,
     read_aod,
+    read_quality_flag,
+    apply_quality_mask,
+    read_projection,
+    goes_xy_to_latlon,
+    crop_bbox,
+    create_output_filename,
+    get_metadata,
+)
+
+from .interpolate_goes import (
+    interpolate_grid
 )
 
 # ==========================================================
@@ -90,7 +101,79 @@ def main():
 
         aod, attrs = read_aod(ds)
 
-        print(aod.shape)
+        print("\nApós read_aod")
+        print("AOD válidos:", np.isfinite(aod).sum())        
+
+        dqf, _ = read_quality_flag(ds)
+
+        aod = apply_quality_mask(
+            aod,
+            dqf
+        )
+
+        proj = read_projection(ds)
+
+        lon, lat = goes_xy_to_latlon(proj)
+
+        print("\nApós goes_xy_to_latlon")
+        print("Lon válidos:", np.isfinite(lon).sum())
+        print("Lat válidos:", np.isfinite(lat).sum())        
+
+        lon, lat, aod = crop_bbox(
+            lon,
+            lat,
+            aod,
+            (-90, -60, -30, 15)
+        )       
+
+        print("\nApós crop_bbox")
+        print("AOD válidos:", np.isfinite(aod).sum())
+        print("Shape:", aod.shape)
+
+        # grid_lon, grid_lat, grid_aod = interpolate_grid(
+        #     lon,
+        #     lat,
+        #     aod,
+        #     resolution=0.05,
+        #     method="linear"
+        # )
+
+        try:
+            grid_lon, grid_lat, grid_aod = interpolate_grid(
+                lon,
+                lat,
+                aod,
+                resolution=0.05,
+                method="linear",
+            )
+        except ValueError as e:
+            print(f"Pulando {arquivo.name}: {e}")
+            ds.close()
+            continue
+
+
+        output_dir = Path(
+            "/home/jurandir/cipc_output/geotiff/goes_aod"
+        )
+
+        metadata = get_metadata(ds)
+
+        output_file = create_output_filename(
+            metadata,
+            output_dir
+        )
+
+        # output_file = create_output_filename(
+        #     arquivo,
+        #     output_dir
+        # )
+
+        print(f"Saída: {output_file}")
+
+        print(f"AOD original : {aod.shape}")
+        print(f"Pontos úteis : {aod.size:,}")
+        print(f"Longitude    : {lon.min():.2f} -> {lon.max():.2f}")
+        print(f"Latitude     : {lat.min():.2f} -> {lat.max():.2f}")        
 
         ds.close()
 
@@ -101,52 +184,3 @@ if __name__ == "__main__":
     main()
 
 
-
-
-# """
-# process_goes_aod.py
-
-# Processamento dos produtos GOES-16 ABI L2 AOD.
-# """
-
-# from pathlib import Path
-
-# from .goes_utils import (
-#     open_dataset,
-#     list_goes_files,
-#     read_aod,
-# )
-
-
-# # ==========================================================
-# # Programa principal
-# # ==========================================================
-# def main():
-
-#     input_dir = Path("/home/jurandir/cipc_data/L2/AOD/2024")
-
-#     arquivos = list_goes_files(input_dir)
-
-#     print(f"{len(arquivos)} arquivos encontrados.\n")
-
-#     for arquivo in arquivos:
-
-#         print(f"Lendo: {arquivo.name}")
-
-#         # Abre o NetCDF
-#         ds = open_dataset(arquivo)
-
-#         # Lê a variável AOD
-#         aod, attrs = read_aod(ds)
-
-#         print(f"Dimensão: {aod.shape}")
-#         print(f"Unidade : {attrs.get('units', 'N/D')}")
-#         print("-" * 60)
-
-#         ds.close()
-
-
-# # ==========================================================
-# if __name__ == "__main__":
-
-#     main()

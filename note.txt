@@ -299,3 +299,50 @@ export_geotiff.py
         │
         ▼
 viewer/
+
+
+sequência do processamento process_goes_aod.py
+
+list_goes_files()
+        ↓
+open_dataset()
+        ↓
+get_metadata()
+        ↓
+read_aod()
+read_quality_flag()
+        ↓
+apply_quality_mask()
+        ↓
+read_projection()
+        ↓
+goes_xy_to_latlon()
+        ↓
+crop_bbox()
+        ↓
+interpolate_grid()
+        ↓
+create_output_filename()
+        ↓
+export_geotiff()list_goes_files()
+        ↓
+open_dataset()
+        ↓
+get_metadata()
+        ↓
+read_aod()
+read_quality_flag()
+        ↓
+apply_quality_mask()
+        ↓
+read_projection()
+        ↓
+goes_xy_to_latlon()
+        ↓
+crop_bbox()
+        ↓
+interpolate_grid()
+        ↓
+create_output_filename()
+        ↓
+export_geotiff()
