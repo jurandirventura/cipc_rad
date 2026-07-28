@@ -7,6 +7,7 @@ Processamento dos produtos GOES ABI L2.
 import sys
 from datetime import datetime
 from pathlib import Path
+import numpy as np
 
 from .goes_utils import (
     open_dataset,
@@ -24,6 +25,8 @@ from .goes_utils import (
 from .interpolate_goes import (
     interpolate_grid
 )
+
+from .export_geotiff import export_geotiff
 
 # ==========================================================
 # Leitura dos argumentos
@@ -130,14 +133,6 @@ def main():
         print("AOD válidos:", np.isfinite(aod).sum())
         print("Shape:", aod.shape)
 
-        # grid_lon, grid_lat, grid_aod = interpolate_grid(
-        #     lon,
-        #     lat,
-        #     aod,
-        #     resolution=0.05,
-        #     method="linear"
-        # )
-
         try:
             grid_lon, grid_lat, grid_aod = interpolate_grid(
                 lon,
@@ -152,21 +147,33 @@ def main():
             continue
 
 
+        print("AOD min:", np.nanmin(aod))
+        print("AOD max:", np.nanmax(aod))
+
+        print("DQF únicos:", np.unique(dqf))
+
+
         output_dir = Path(
             "/home/jurandir/cipc_output/geotiff/goes_aod"
         )
+
 
         metadata = get_metadata(ds)
 
         output_file = create_output_filename(
             metadata,
             output_dir
+        )        
+
+        export_geotiff(
+            output_file,
+            grid_lon,
+            grid_lat,
+            grid_aod,
+            metadata=metadata,
         )
 
-        # output_file = create_output_filename(
-        #     arquivo,
-        #     output_dir
-        # )
+        print("---> Arquivo existe?", output_file.exists())
 
         print(f"Saída: {output_file}")
 
