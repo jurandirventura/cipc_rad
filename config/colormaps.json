@@ -400,5 +400,32 @@
     "#8B0000",
     "#800080" 
   ]
+},
+
+"goes_aod": {
+  "title": "GOES-16 Aerosol Optical Depth",
+  "short_name": "GOES AOD",
+  "description": "Espessura Óptica de Aerossóis (AOD) obtida do produto ABI L2 AOD do satélite GOES-16.",
+  "source": "NOAA GOES-16 ABI L2 AOD",
+  "type": "continuous",
+  "unit": "AOD",
+  "valid_range": [0.0, 2.0],
+  "vmin": 0.0,
+  "vmax": 2.0,
+  "nodata": -9999,
+  "ticks": [0.0, 0.2, 0.4, 0.6, 0.8, 1.0, 1.2, 1.4, 1.6, 1.8, 2.0 ],
+  "colors": [
+    "#08306B",
+    "#2171B5",
+    "#6BAED6",
+    "#C6DBEF",
+    "#FFFFCC",
+    "#FEE391",
+    "#FEC44F",
+    "#FE9929",
+    "#EC7014",
+    "#CC4C02",
+    "#993404"
+  ]
 }
 }
