@@ -56,7 +56,5 @@ def create_sat_config(sat_index):
             "marker": "P",
             "label": "CH4_SAT*0.05",
             "unit": "ppb",
-
-
         }
     }

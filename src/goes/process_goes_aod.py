@@ -153,17 +153,40 @@ def main():
         print("DQF únicos:", np.unique(dqf))
 
 
-        output_dir = Path(
-            "/home/jurandir/cipc_output/geotiff/goes_aod"
-        )
+        # output_dir = Path(
+        #     "/home/jurandir/cipc_output/geotiff/goes_aod"
+        # )
 
+
+        # metadata = get_metadata(ds)
+
+        # output_file = create_output_filename(
+        #     metadata,
+        #     output_dir
+        # )        
 
         metadata = get_metadata(ds)
+
+        print("\nMETADATA")
+        for k, v in metadata.items():
+            print(f"{k}: {v}")
+
+        # Ano do arquivo GOES
+        # year = metadata["start_time"].strftime("%Y")
+        year = metadata["time_coverage_start"][:4]
+
+        # Diretório de saída organizado por ano
+        output_dir = Path(
+            "/home/jurandir/cipc_output/geotiff/goes_aod"
+        ) / year
+
+        # Cria o diretório caso não exista
+        output_dir.mkdir(parents=True, exist_ok=True)
 
         output_file = create_output_filename(
             metadata,
             output_dir
-        )        
+        )       
 
         export_geotiff(
             output_file,
