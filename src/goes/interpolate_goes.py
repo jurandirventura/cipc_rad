@@ -62,10 +62,10 @@ def interpolate_grid(
 
     # Definidos limites iguais aos utilizados para o Sentinel-5P
     # Assim a saída GeoTIFF do AOD-GOES segue o mesmo padrão
-    x_min = -85
-    x_max = -30
-    y_min = -60
-    y_max = 15
+    xmin = -85
+    xmax = -30
+    ymin = -60
+    ymax = 15
 
     # =====================================================
     # MÉTODO BINNING (igual ao Sentinel)
