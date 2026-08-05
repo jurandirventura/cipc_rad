@@ -561,7 +561,7 @@ def interpolate_grid(
     lat,
     data,
     # resolution=0.05,
-    resolution=0.5,    
+    resolution=0.05,    
     method="linear"
 ):
     """

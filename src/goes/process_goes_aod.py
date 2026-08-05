@@ -139,7 +139,7 @@ def main():
                 lat,
                 aod,
                 resolution=0.05,
-                method="linear",
+                method="binning",
             )
         except ValueError as e:
             print(f"Pulando {arquivo.name}: {e}")
