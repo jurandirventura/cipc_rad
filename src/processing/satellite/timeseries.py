@@ -19,6 +19,8 @@ def get_satellite_series(
     scale=1.0
 ):
 
+    import time
+
     print("\n===== GET SATELLITE SERIES =====")
     print("Lat:", lat_station)
     print("Lon:", lon_station)
@@ -27,45 +29,137 @@ def get_satellite_series(
     print("Datas:", datas_unicas)
     print("Índice possui:", len(sat_index), "dias")
 
-
     sat_dates = []
     sat_values = []
 
+    inicio_total = time.perf_counter()
+
     for data_ref in datas_unicas:
 
-        yyyymmdd = pd.Timestamp(
-            data_ref
-        ).strftime("%Y%m%d")
+        inicio_dia = time.perf_counter()
+
+        data_ref = pd.Timestamp(data_ref)
+
+        yyyymmdd = data_ref.strftime("%Y%m%d")
 
         arquivos = sat_index.get(
             yyyymmdd
         )
 
         print(
-            "DATA:",
+            "\nDATA:",
             yyyymmdd,
             "ARQUIVOS:",
             len(arquivos) if isinstance(arquivos, list) else arquivos
-        )        
+        )
 
         if arquivos is None:
             continue
 
-        # ==================================================
-        # Produto diário
-        # ==================================================
-
         if isinstance(arquivos, str):
-
             arquivos = [arquivos]
 
-        # ==================================================
-        # GOES
-        # ==================================================
+        # =================================================
+        # SELECIONA 1 ARQUIVO POR HORA
+        # =================================================
+
+        arquivos_horarios = {}
+
+        for tif_file in arquivos:
+
+            # -------------------------------------------------
+            # Extrai o horário do nome/caminho do arquivo
+            # -------------------------------------------------
+
+            nome = str(tif_file)
+
+            # Procura padrão YYYYMMDD_HHMMSS
+            import re
+
+            match = re.search(
+                r"(\d{8})_(\d{6})",
+                nome
+            )
+
+            if not match:
+                continue
+
+            data_str = match.group(1)
+            hora_str = match.group(2)
+
+            if data_str != yyyymmdd:
+                continue
+
+            hora = int(
+                hora_str[0:2]
+            )
+
+            minuto = int(
+                hora_str[2:4]
+            )
+
+            segundo = int(
+                hora_str[4:6]
+            )
+
+            # -------------------------------------------------
+            # Distância para a hora cheia
+            # -------------------------------------------------
+
+            segundos_desde_hora = (
+                minuto * 60 +
+                segundo
+            )
+
+            # Distância circular dentro da hora
+            distancia = min(
+                segundos_desde_hora,
+                3600 - segundos_desde_hora
+            )
+
+            # -------------------------------------------------
+            # Guarda o mais próximo da hora cheia
+            # -------------------------------------------------
+
+            atual = arquivos_horarios.get(
+                hora
+            )
+
+            if (
+                atual is None
+                or distancia < atual["distancia"]
+            ):
+
+                arquivos_horarios[hora] = {
+
+                    "arquivo": tif_file,
+
+                    "distancia": distancia
+                }
+
+        # =================================================
+        # PROCESSA OS ARQUIVOS HORÁRIOS
+        # =================================================
+
+        arquivos_selecionados = [
+
+            arquivos_horarios[h]["arquivo"]
+
+            for h in sorted(
+                arquivos_horarios
+            )
+        ]
+
+        print(
+            "ARQUIVOS SELECIONADOS:",
+            len(arquivos_selecionados)
+        )
 
         valores = []
 
-        for tif_file in arquivos:
+        for tif_file in arquivos_selecionados:
+
+            inicio_tif = time.perf_counter()
 
             valor = get_satellite_mean(
                 tif_file,
@@ -74,13 +168,18 @@ def get_satellite_series(
                 delta
             )
 
+            tempo_tif = (
+                time.perf_counter()
+                - inicio_tif
+            )
+
             print(
                 "GOES:",
                 tif_file,
                 "=>",
-                valor
+                valor,
+                f"tempo={tempo_tif:.3f}s"
             )
-
 
             if np.isfinite(valor):
 
@@ -88,36 +187,272 @@ def get_satellite_series(
                     valor
                 )
 
-        # --------------------------------------------------
-        # Nenhum valor válido
-        # --------------------------------------------------
+        # =================================================
+        # NENHUM VALOR VÁLIDO
+        # =================================================
 
         if not valores:
             continue
 
-        # --------------------------------------------------
-        # Média diária
-        # --------------------------------------------------
+        # =================================================
+        # MÉDIA DIÁRIA
+        # =================================================
 
         valor_medio = np.mean(
             valores
         )
 
         sat_dates.append(
-            pd.Timestamp(data_ref)
+            data_ref
         )
 
         sat_values.append(
             valor_medio * scale
         )
 
+        tempo_dia = (
+            time.perf_counter()
+            - inicio_dia
+        )
+
+        print(
+            f"TEMPO DIA {yyyymmdd}: "
+            f"{tempo_dia:.3f}s"
+        )
+
+    tempo_total = (
+        time.perf_counter()
+        - inicio_total
+    )
+
     print(
-        "RESULTADO GOES:",
-        sat_dates,
+        "\n===== RESULTADO GOES ====="
+    )
+
+    print(
+        "DATAS:",
+        sat_dates
+    )
+
+    print(
+        "VALORES:",
         sat_values
     )
 
+    print(
+        f"TEMPO TOTAL GOES = "
+        f"{tempo_total:.3f}s"
+    )
+
     return sat_dates, sat_values
+
+
+
+#------------------
+
+# =========================================================
+# Função para leitura dos produtos GOES com data + hora
+# =========================================================
+def get_goes_series(
+    goes_index,
+    datas_unicas,
+    lat_station,
+    lon_station,
+    delta,
+    scale=1.0
+):
+    """
+    Extrai série temporal dos produtos GOES.
+
+    O índice GOES utiliza chaves no formato:
+
+        YYYYMMDD_HHMMSS
+
+    Exemplo:
+
+        20240816_143020
+        20240816_152020
+        20240816_181020
+
+    Retorna um ponto para cada arquivo GOES disponível.
+    """
+
+    goes_dates = []
+    goes_values = []
+
+    for data_ref in datas_unicas:
+
+        data_ref = pd.Timestamp(data_ref)
+
+        prefix = data_ref.strftime(
+            "%Y%m%d"
+        )
+
+        # -------------------------------------------------
+        # Todos os arquivos GOES daquele dia
+        # -------------------------------------------------
+
+        arquivos_dia = sorted(
+            (
+                key,
+                tif_file
+            )
+            for key, tif_file in goes_index.items()
+            if key.startswith(prefix + "_")
+        )
+
+        # -------------------------------------------------
+        # Processa cada horário
+        # -------------------------------------------------
+
+        for key, tif_file in arquivos_dia:
+
+            valor = get_satellite_mean(
+                tif_file,
+                lat_station,
+                lon_station,
+                delta
+            )
+
+            if not np.isfinite(valor):
+                continue
+
+            # ---------------------------------------------
+            # YYYYMMDD_HHMMSS
+            # →
+            # Timestamp
+            # ---------------------------------------------
+
+            data_hora = pd.to_datetime(
+                key,
+                format="%Y%m%d_%H%M%S"
+            )
+
+            goes_dates.append(
+                data_hora
+            )
+
+            goes_values.append(
+                valor * scale
+            )
+
+    return goes_dates, goes_values
+
+
+
+
+
+# # VERSÃO FUNCIONAVA MAS DEPOIS DE MUDAR PARA BUSCAR ARQUIVOS 
+# # GOES MAIS PRÓXIMO DA HORA E NÃO DE 10 EM 10 MINUTOS, FOI 
+# # ALTERADA PARA A NOVA VERSÃO. 
+# def get_satellite_series(
+#     sat_index,
+#     datas_unicas,
+#     lat_station,
+#     lon_station,
+#     delta,
+#     scale=1.0
+# ):
+
+#     print("\n===== GET SATELLITE SERIES =====")
+#     print("Lat:", lat_station)
+#     print("Lon:", lon_station)
+#     print("Delta:", delta)
+#     print("Scale:", scale)
+#     print("Datas:", datas_unicas)
+#     print("Índice possui:", len(sat_index), "dias")
+
+
+#     sat_dates = []
+#     sat_values = []
+
+#     for data_ref in datas_unicas:
+
+#         yyyymmdd = pd.Timestamp(
+#             data_ref
+#         ).strftime("%Y%m%d")
+
+#         arquivos = sat_index.get(
+#             yyyymmdd
+#         )
+
+#         print(
+#             "DATA:",
+#             yyyymmdd,
+#             "ARQUIVOS:",
+#             len(arquivos) if isinstance(arquivos, list) else arquivos
+#         )        
+
+#         if arquivos is None:
+#             continue
+
+#         # ==================================================
+#         # Produto diário
+#         # ==================================================
+
+#         if isinstance(arquivos, str):
+
+#             arquivos = [arquivos]
+
+#         # ==================================================
+#         # GOES
+#         # ==================================================
+
+#         valores = []
+
+#         for tif_file in arquivos:
+
+#             valor = get_satellite_mean(
+#                 tif_file,
+#                 lat_station,
+#                 lon_station,
+#                 delta
+#             )
+
+#             print(
+#                 "GOES:",
+#                 tif_file,
+#                 "=>",
+#                 valor
+#             )
+
+
+#             if np.isfinite(valor):
+
+#                 valores.append(
+#                     valor
+#                 )
+
+#         # --------------------------------------------------
+#         # Nenhum valor válido
+#         # --------------------------------------------------
+
+#         if not valores:
+#             continue
+
+#         # --------------------------------------------------
+#         # Média diária
+#         # --------------------------------------------------
+
+#         valor_medio = np.mean(
+#             valores
+#         )
+
+#         sat_dates.append(
+#             pd.Timestamp(data_ref)
+#         )
+
+#         sat_values.append(
+#             valor_medio * scale
+#         )
+
+#     print(
+#         "RESULTADO GOES:",
+#         sat_dates,
+#         sat_values
+#     )
+
+#     return sat_dates, sat_values
 
 
 
@@ -466,92 +801,4 @@ def get_satellite_series(
 
 #     return sat_dates, sat_values
 
-
-# =========================================================
-# Função para leitura dos produtos GOES com data + hora
-# =========================================================
-def get_goes_series(
-    goes_index,
-    datas_unicas,
-    lat_station,
-    lon_station,
-    delta,
-    scale=1.0
-):
-    """
-    Extrai série temporal dos produtos GOES.
-
-    O índice GOES utiliza chaves no formato:
-
-        YYYYMMDD_HHMMSS
-
-    Exemplo:
-
-        20240816_143020
-        20240816_152020
-        20240816_181020
-
-    Retorna um ponto para cada arquivo GOES disponível.
-    """
-
-    goes_dates = []
-    goes_values = []
-
-    for data_ref in datas_unicas:
-
-        data_ref = pd.Timestamp(data_ref)
-
-        prefix = data_ref.strftime(
-            "%Y%m%d"
-        )
-
-        # -------------------------------------------------
-        # Todos os arquivos GOES daquele dia
-        # -------------------------------------------------
-
-        arquivos_dia = sorted(
-            (
-                key,
-                tif_file
-            )
-            for key, tif_file in goes_index.items()
-            if key.startswith(prefix + "_")
-        )
-
-        # -------------------------------------------------
-        # Processa cada horário
-        # -------------------------------------------------
-
-        for key, tif_file in arquivos_dia:
-
-            valor = get_satellite_mean(
-                tif_file,
-                lat_station,
-                lon_station,
-                delta
-            )
-
-            if not np.isfinite(valor):
-                continue
-
-            # ---------------------------------------------
-            # YYYYMMDD_HHMMSS
-            # →
-            # Timestamp
-            # ---------------------------------------------
-
-            data_hora = pd.to_datetime(
-                key,
-                format="%Y%m%d_%H%M%S"
-            )
-
-            goes_dates.append(
-                data_hora
-            )
-
-            goes_values.append(
-                valor * scale
-            )
-
-    return goes_dates, goes_values
 
