@@ -1,0 +1,621 @@
+#!/usr/bin/env python3
+# Sentinel-3B SLSTR L2 AOD -> passagem -> GeoTIFF/COG/tiles
+#
+# Adaptação da rotina read_plot_S5p.py.
+#
+# Exemplo:
+# python read_plot_s3b.py "/home/jurandir/cipc_data/L2/2024/S3B_SL_2_AOD____20240816*/**/NRT_AOD.nc" AOD_550_Merged_OceanLand "Sentinel-3B AOD 550 nm" "AOD 550" png
+
+import sys, os, re, glob, subprocess
+from pathlib import Path
+from datetime import datetime
+import xarray as xr
+import numpy as np
+import matplotlib.pyplot as plt
+import cartopy.crs as ccrs
+import cartopy.feature as cfeature
+from cartopy.feature import NaturalEarthFeature
+from matplotlib.colors import Normalize
+from osgeo import gdal, osr
+
+import zipfile
+import tempfile
+
+from src.processing.colormap_loader import load_colormap
+from src.config.settings import OUTPUT_DIR
+
+# América do Sul
+LON_MIN, LON_MAX = -86.17, -30.12
+LAT_MIN, LAT_MAX = -59.01, 11.60
+
+# Granules da mesma passagem são separados por ~5 min.
+# Gap maior que este valor inicia nova passagem.
+PASSAGE_GAP_MINUTES = 20
+GRID_RESOLUTION = 0.05
+
+
+if len(sys.argv) < 6:
+    print("Uso:")
+    print("python read_plot_s3b.py FILE1 [FILE2 ... ou máscara*] VAR_PRODUCT TITLE LABEL EXT")
+    print()
+    print("Exemplo:")
+    print("python read_plot_s3b.py '/home/jurandir/cipc_data/L2/2024/S3B_SL_2_AOD____20240816*/**/NRT_AOD.nc' AOD_550_Merged_OceanLand 'Sentinel-3B AOD 550 nm' 'AOD 550' png")
+    sys.exit(1)
+
+VAR_PRODUCT = sys.argv[-4]
+TITLE = sys.argv[-3]
+LABEL = sys.argv[-2]
+EXT = sys.argv[-1].lower().replace(".", "")
+INPUTS = sys.argv[1:-4]
+
+if len(sys.argv) < 6:
+    print("\nUso:")
+    print(
+        "python read_plot_s3b.py "
+        "FILE1 [FILE2 ... ou máscara*] "
+        "VAR_PRODUCT TITLE LABEL EXT"
+    )
+    print()
+    print("Exemplo:")
+    print(
+        "python read_plot_s3b.py "
+        "'/home/jurandir/cipc_data/L2/2024/"
+        "S3B_SL_2_AOD____20240816*/**/NRT_AOD.nc' "
+        "AOD_550_Merged_OceanLand "
+        "'Sentinel-3B AOD 550 nm' "
+        "'AOD 550' png"
+    )
+    sys.exit(1)
+
+VAR_PRODUCT = sys.argv[-4]
+TITLE = sys.argv[-3]
+LABEL = sys.argv[-2]
+EXT = sys.argv[-1].lower().replace(".", "")
+INPUTS = sys.argv[1:-4]
+
+if EXT not in ("png", "jpg", "jpeg"):
+    raise ValueError("EXT deve ser png, jpg ou jpeg")
+
+
+
+
+# ------------------------------------------------------------
+# Localizar NRT_AOD.nc
+# ------------------------------------------------------------
+FILES = []
+for item in INPUTS:
+    matches = glob.glob(item, recursive=True)
+    if not matches:
+        print(f"[WARN] Nenhum arquivo encontrado: {item}")
+        continue
+
+    for path in matches:
+        p = Path(path)
+        if p.is_file() and p.name == "NRT_AOD.nc":
+            FILES.append(str(p))
+        elif p.is_dir():
+            FILES.extend(str(x) for x in p.rglob("NRT_AOD.nc"))
+
+FILES = sorted(set(FILES))
+
+if not FILES:
+    raise SystemExit("Nenhum NRT_AOD.nc encontrado.")
+
+print(f"[INFO] {len(FILES)} NRT_AOD.nc encontrado(s).")
+
+
+def localizar_nrt_aod(zip_path):
+    """
+    Localiza NRT_AOD.nc dentro de um produto Sentinel-3B .SEN3.zip.
+    Extrai somente o NRT_AOD.nc para um diretório temporário.
+    """
+
+    with zipfile.ZipFile(zip_path, "r") as z:
+
+        candidatos = [
+            name
+            for name in z.namelist()
+            if name.endswith("/NRT_AOD.nc") or name == "NRT_AOD.nc"
+        ]
+
+        if not candidatos:
+            raise FileNotFoundError(
+                f"NRT_AOD.nc não encontrado em {zip_path}"
+            )
+
+        nc_name = candidatos[0]
+
+        tmpdir = tempfile.TemporaryDirectory()
+
+        nc_path = Path(tmpdir.name) / "NRT_AOD.nc"
+
+        with z.open(nc_name) as src, open(nc_path, "wb") as dst:
+            while True:
+                chunk = src.read(1024 * 1024)
+
+                if not chunk:
+                    break
+
+                dst.write(chunk)
+
+        return tmpdir, nc_path
+
+
+
+
+def abrir_netcdf_do_zip(zip_path):
+    tmpdir = tempfile.TemporaryDirectory()
+
+    try:
+
+        with zipfile.ZipFile(zip_path, "r") as z:
+
+            candidatos = [
+                name
+                for name in z.namelist()
+                if name.endswith("/NRT_AOD.nc")
+            ]
+
+            if not candidatos:
+                raise FileNotFoundError(
+                    f"NRT_AOD.nc não encontrado em {zip_path}"
+                )
+
+            nc_name = candidatos[0]
+
+            nc_path = Path(tmpdir.name) / "NRT_AOD.nc"
+
+            with z.open(nc_name) as src, open(nc_path, "wb") as dst:
+
+                while True:
+
+                    chunk = src.read(1024 * 1024)
+
+                    if not chunk:
+                        break
+
+                    dst.write(chunk)
+
+        ds = xr.open_dataset(
+            nc_path,
+            decode_cf=True,
+            mask_and_scale=True
+        )
+
+        return ds, tmpdir
+
+    except Exception:
+
+        tmpdir.cleanup()
+        raise
+
+    
+
+def extract_datetime(filename):
+    m = re.search(r"(\d{8})T(\d{6})", filename)
+    if not m:
+        return None
+    return datetime.strptime(m.group(1) + m.group(2), "%Y%m%d%H%M%S")
+
+
+# ------------------------------------------------------------
+# Ordenar e agrupar granules em passagens
+# ------------------------------------------------------------
+dated = []
+for f in FILES:
+    dt = extract_datetime(f)
+    if dt:
+        dated.append((dt, f))
+    else:
+        print(f"[WARN] Data/hora não encontrada: {f}")
+
+dated.sort(key=lambda x: x[0])
+
+passages = []
+current = []
+
+for item in dated:
+    if not current:
+        current = [item]
+        continue
+
+    gap = (item[0] - current[-1][0]).total_seconds() / 60.0
+
+    if gap <= PASSAGE_GAP_MINUTES:
+        current.append(item)
+    else:
+        passages.append(current)
+        current = [item]
+
+if current:
+    passages.append(current)
+
+print("\n[INFO] Passagens identificadas:")
+for i, passage in enumerate(passages, 1):
+    print(
+        f"  Passagem {i:02d}: "
+        f"{passage[0][0]:%Y-%m-%d %H:%M:%S} -> "
+        f"{passage[-1][0]:%H:%M:%S} "
+        f"({len(passage)} granules)"
+    )
+
+
+# ------------------------------------------------------------
+# Saídas
+# ------------------------------------------------------------
+figures_dir = OUTPUT_DIR / "figures" / VAR_PRODUCT
+geotiff_dir = OUTPUT_DIR / "geotiff" / VAR_PRODUCT
+cog_dir = OUTPUT_DIR / "cog" / VAR_PRODUCT
+tiles_dir = OUTPUT_DIR / "tiles" / VAR_PRODUCT
+
+for d in (figures_dir, geotiff_dir, cog_dir, tiles_dir):
+    d.mkdir(parents=True, exist_ok=True)
+
+try:
+    cmap, norm, vmin, vmax, ticks = load_colormap(VAR_PRODUCT)
+except Exception:
+    cmap = plt.cm.viridis
+    norm = None
+    vmin = vmax = ticks = None
+
+
+def read_aod_dataset(ds):
+
+    if VAR_PRODUCT not in ds.variables:
+        aod_vars = [
+            x for x in ds.variables
+            if "AOD" in x.upper()
+        ]
+
+        raise KeyError(
+            f"Variável '{VAR_PRODUCT}' não encontrada. "
+            f"Variáveis AOD encontradas: {aod_vars}"
+        )
+
+    data = (
+        ds[VAR_PRODUCT]
+        .squeeze()
+        .astype(np.float64)
+        .values
+    )
+
+    lat = (
+        ds["latitude"]
+        .squeeze()
+        .astype(np.float64)
+        .values
+    )
+
+    lon = (
+        ds["longitude"]
+        .squeeze()
+        .astype(np.float64)
+        .values
+    )
+
+    if lat.ndim == 1 and lon.ndim == 1:
+        lon, lat = np.meshgrid(lon, lat)
+
+    if data.shape != lat.shape:
+        lat = np.broadcast_to(lat, data.shape)
+        lon = np.broadcast_to(lon, data.shape)
+
+    data[~np.isfinite(data)] = np.nan
+    data[data < 0] = np.nan
+
+    valid = (
+        np.isfinite(data)
+        & np.isfinite(lat)
+        & np.isfinite(lon)
+        & (lat >= LAT_MIN)
+        & (lat <= LAT_MAX)
+        & (lon >= LON_MIN)
+        & (lon <= LON_MAX)
+    )
+
+    return (
+        lat[valid],
+        lon[valid],
+        data[valid]
+    )
+
+
+def read_aod_nc(filename):
+
+    with xr.open_dataset(
+        filename,
+        decode_cf=True,
+        mask_and_scale=True
+    ) as ds:
+
+        return read_aod_dataset(ds)
+
+
+def read_aod(filename):
+
+    filename = Path(filename)
+
+    if filename.suffix.lower() == ".zip":
+
+        ds, tmpdir = abrir_netcdf_do_zip(filename)
+
+        try:
+            return read_aod_dataset(ds)
+
+        finally:
+            ds.close()
+            tmpdir.cleanup()
+
+    return read_aod_nc(filename)
+
+
+
+# def read_aod(filename):
+#     """Lê um NRT_AOD.nc do S3B."""
+#     ds = xr.open_dataset(filename, decode_cf=True, mask_and_scale=True)
+
+#     if VAR_PRODUCT not in ds.variables:
+#         aod_vars = [x for x in ds.variables if "AOD" in x.upper()]
+#         ds.close()
+#         raise KeyError(
+#             f"{VAR_PRODUCT} não encontrada. AOD disponíveis: {aod_vars}"
+#         )
+
+#     data = ds[VAR_PRODUCT].squeeze().astype(np.float64).values
+#     lat = ds["latitude"].squeeze().astype(np.float64).values
+#     lon = ds["longitude"].squeeze().astype(np.float64).values
+
+#     if lat.ndim == 1 and lon.ndim == 1:
+#         lon, lat = np.meshgrid(lon, lat)
+
+#     if data.shape != lat.shape:
+#         lat = np.broadcast_to(lat, data.shape)
+#         lon = np.broadcast_to(lon, data.shape)
+
+#     data[~np.isfinite(data)] = np.nan
+#     data[data < 0] = np.nan
+
+#     valid = (
+#         np.isfinite(data) &
+#         np.isfinite(lat) &
+#         np.isfinite(lon) &
+#         (lat >= LAT_MIN) & (lat <= LAT_MAX) &
+#         (lon >= LON_MIN) & (lon <= LON_MAX)
+#     )
+
+#     out = lat[valid], lon[valid], data[valid]
+#     ds.close()
+#     return out
+
+
+def read_aod(filename):
+
+    filename = Path(filename)
+
+    # ------------------------------------------------------------
+    # Se for ZIP, extrai temporariamente o NRT_AOD.nc
+    # ------------------------------------------------------------
+    if filename.suffix.lower() == ".zip":
+
+        ds, tmpdir = abrir_netcdf_do_zip(filename)
+
+        try:
+            return read_aod_dataset(ds)
+
+        finally:
+            ds.close()
+            tmpdir.cleanup()
+
+    # ------------------------------------------------------------
+    # Se já for NRT_AOD.nc, abre normalmente
+    # ------------------------------------------------------------
+    return read_aod_nc(filename)
+
+
+def make_grid(lon, lat, values):
+    """Level-3 binning: média em células de 0.05°."""
+    lon_bins = np.arange(LON_MIN, LON_MAX + GRID_RESOLUTION, GRID_RESOLUTION)
+    lat_bins = np.arange(LAT_MIN, LAT_MAX + GRID_RESOLUTION, GRID_RESOLUTION)
+
+    ix = np.digitize(lon, lon_bins) - 1
+    iy = np.digitize(lat, lat_bins) - 1
+
+    ok = (
+        (ix >= 0) & (ix < len(lon_bins)) &
+        (iy >= 0) & (iy < len(lat_bins)) &
+        np.isfinite(values)
+    )
+
+    ix, iy, values = ix[ok], iy[ok], values[ok]
+
+    total = np.zeros((len(lat_bins), len(lon_bins)), dtype=np.float64)
+    count = np.zeros_like(total)
+
+    np.add.at(total, (iy, ix), values)
+    np.add.at(count, (iy, ix), 1)
+
+    grid = np.full(total.shape, np.nan, dtype=np.float32)
+    np.divide(total, count, out=grid, where=count > 0)
+
+    lon2d, lat2d = np.meshgrid(lon_bins, lat_bins)
+    return lon2d, lat2d, grid
+
+
+# ------------------------------------------------------------
+# Processar cada passagem
+# ------------------------------------------------------------
+for number, passage in enumerate(passages, 1):
+
+    start_dt = passage[0][0]
+    end_dt = passage[-1][0]
+    timestamp = start_dt.strftime("%Y%m%d_%H%M%S")
+    year = start_dt.strftime("%Y")
+    date = start_dt.strftime("%Y%m%d")
+
+    print("\n" + "=" * 70)
+    print(f"PASSAGEM {number:02d}")
+    print(f"{start_dt} -> {end_dt}")
+    print("=" * 70)
+
+    lats, lons, vals = [], [], []
+
+    for dt, filename in passage:
+        print(f"[READ] {dt:%H:%M:%S} {Path(filename).parent.name}")
+
+        try:
+            lat, lon, value = read_aod(filename)
+        except Exception as e:
+            print(f"[ERRO] {e}")
+            continue
+
+        if len(value):
+            lats.append(lat)
+            lons.append(lon)
+            vals.append(value)
+            print(f"       pixels válidos: {len(value)}")
+
+    if not vals:
+        print("[WARN] Passagem sem dados válidos.")
+        continue
+
+    lat = np.concatenate(lats)
+    lon = np.concatenate(lons)
+    value = np.concatenate(vals)
+
+    lon2d, lat2d, data = make_grid(lon, lat, value)
+
+    if not np.any(np.isfinite(data)):
+        print("[WARN] Grade vazia.")
+        continue
+
+    local_norm = norm
+    if local_norm is None:
+        lo = np.nanpercentile(data, 1)
+        hi = np.nanpercentile(data, 99)
+        if lo == hi:
+            hi = lo + 1
+        local_norm = Normalize(lo, hi)
+
+    # Diretórios anuais
+    fig_dir = figures_dir / year
+    tif_dir = geotiff_dir / year
+    cog_year_dir = cog_dir / year
+    tile_dir = tiles_dir / year / date / timestamp
+
+    for d in (fig_dir, tif_dir, cog_year_dir, tile_dir):
+        d.mkdir(parents=True, exist_ok=True)
+
+    # --------------------------------------------------------
+    # Figura
+    # --------------------------------------------------------
+    fig = plt.figure(figsize=(12, 8))
+    ax = plt.axes(projection=ccrs.PlateCarree())
+    ax.set_extent(
+        [LON_MIN, LON_MAX, LAT_MIN, LAT_MAX],
+        crs=ccrs.PlateCarree()
+    )
+
+    mesh = ax.pcolormesh(
+        lon2d, lat2d, data,
+        cmap=cmap, norm=local_norm,
+        shading="auto",
+        transform=ccrs.PlateCarree()
+    )
+
+    cbar = plt.colorbar(mesh, ax=ax, pad=0.02)
+    cbar.set_label(LABEL)
+
+    if ticks is not None:
+        cbar.set_ticks(ticks)
+
+    ax.coastlines(resolution="10m")
+    ax.add_feature(cfeature.BORDERS, linewidth=0.6)
+    ax.add_feature(cfeature.LAND, facecolor="lightgray")
+
+    states = NaturalEarthFeature(
+        category="cultural",
+        name="admin_1_states_provinces_lines",
+        scale="10m",
+        facecolor="none"
+    )
+    ax.add_feature(states, edgecolor="black", linewidth=0.4)
+
+    ax.set_title(
+        f"{TITLE} - {start_dt:%Y-%m-%d %H:%M:%S} UTC"
+    )
+
+    fig_path = fig_dir / f"s3b_aod_{timestamp}.{EXT}"
+    plt.savefig(fig_path, dpi=300, bbox_inches="tight")
+    plt.close(fig)
+
+    print(f"[OK] Figura: {fig_path}")
+
+    # --------------------------------------------------------
+    # GeoTIFF
+    # --------------------------------------------------------
+    tif_path = tif_dir / f"s3b_aod_{timestamp}.tif"
+
+    nrows, ncols = data.shape
+    xres = (LON_MAX - LON_MIN) / (ncols - 1)
+    yres = (LAT_MAX - LAT_MIN) / (nrows - 1)
+
+    driver = gdal.GetDriverByName("GTiff")
+    ds = driver.Create(
+        str(tif_path), ncols, nrows, 1, gdal.GDT_Float32
+    )
+
+    ds.SetGeoTransform((LON_MIN, xres, 0, LAT_MAX, 0, -yres))
+
+    srs = osr.SpatialReference()
+    srs.ImportFromEPSG(4326)
+    ds.SetProjection(srs.ExportToWkt())
+
+    band = ds.GetRasterBand(1)
+    out = np.flipud(data).astype(np.float32)
+    out[~np.isfinite(out)] = -9999
+    band.WriteArray(out)
+    band.SetNoDataValue(-9999)
+    band.SetDescription("Sentinel-3B SLSTR AOD 550 nm")
+
+    ds.FlushCache()
+    ds = None
+
+    print(f"[OK] GeoTIFF: {tif_path}")
+
+    # --------------------------------------------------------
+    # COG
+    # --------------------------------------------------------
+    cog_path = cog_year_dir / f"s3b_aod_{timestamp}_cog.tif"
+
+    gdal.Translate(
+        str(cog_path),
+        str(tif_path),
+        format="COG",
+        creationOptions=["COMPRESS=DEFLATE", "LEVEL=9"]
+    )
+
+    print(f"[OK] COG: {cog_path}")
+
+    # --------------------------------------------------------
+    # Tiles XYZ
+    # --------------------------------------------------------
+    vrt_path = cog_year_dir / f"s3b_aod_{timestamp}_tiles.vrt"
+
+    subprocess.run([
+        "gdal_translate", "-of", "VRT", "-ot", "Byte",
+        "-scale", "-a_nodata", "0",
+        str(cog_path), str(vrt_path)
+    ], check=True)
+
+    subprocess.run([
+        "gdal2tiles.py",
+        "--processes=4",
+        "-z", "0-6",
+        "-w", "none",
+        str(vrt_path),
+        str(tile_dir)
+    ], check=True)
+
+    print(f"[OK] Tiles: {tile_dir}")
+
+print("\n[OK] Processamento Sentinel-3B concluído.")
