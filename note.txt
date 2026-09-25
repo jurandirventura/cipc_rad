@@ -346,3 +346,61 @@ interpolate_grid()
 create_output_filename()
         ↓
 export_geotiff()
+
+
+LEITURA SENTINEL-3
+
+argumentos
+    │
+    ▼
+INPUTS
+    │
+    ▼
+glob.glob()
+    │
+    ├── .SEN3.zip
+    │
+    └── NRT_AOD.nc
+    │
+    ▼
+FILES
+    │
+    ▼
+extract_datetime()
+    │
+    ▼
+agrupamento das passagens
+    │
+    ▼
+for cada passagem
+    │
+    └── for cada ZIP
+            │
+            ▼
+        read_aod()
+            │
+            ▼
+        abrir_netcdf_do_zip()
+            │
+            ├── abre ZIP
+            ├── extrai NRT_AOD.nc temporariamente
+            ├── abre xarray
+            │
+            ▼
+        read_aod_dataset()
+            │
+            ├── AOD_550_Merged_OceanLand
+            ├── latitude
+            ├── longitude
+            └── filtro América do Sul
+            │
+            ▼
+        ds.close()
+        tmpdir.cleanup()
+
+
+Para a variável do Sentinel-3B AOD_550_Merged_OceanLand
+                               ------------------------
+A alteração está baseada no arquivo que você anexou, que já tinha a leitura dos .SEN3.zip, agrupamento das granulações em passagens e o make_grid() de 0,05°.
+
+Importante: o código não faz um gdal_merge dos GeoTIFFs das passagens. Ele faz o overlay antes da criação do GeoTIFF, juntando os pixels de todas as passagens do dia e só então realizando o binning de 0,05°. Isso é o que permite que as diferentes faixas orbitais preencham conjuntamente a América do Sul.

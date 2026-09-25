@@ -427,5 +427,43 @@
     "#CC4C02",
     "#993404"
   ]
+},
+"AOD_550_Merged_OceanLand": {
+  "title": "Sentinel-3B Aerosol Optical Depth 550 nm",
+  "short_name": "Sentinel-3B AOD",
+  "description": "Espessura Óptica de Aerossóis (AOD) a 550 nm obtida do produto Sentinel-3B SLSTR L2 AOD, utilizando a variável AOD_550_Merged_OceanLand.",
+  "source": "EUMETSAT Sentinel-3B SLSTR L2 AOD",
+  "type": "continuous",
+  "unit": "AOD",
+  "valid_range": [0.0, 2.0],
+  "vmin": 0.0,
+  "vmax": 2.0,
+  "nodata": -9999,
+  "ticks": [
+    0.0,
+    0.2,
+    0.4,
+    0.6,
+    0.8,
+    1.0,
+    1.2,
+    1.4,
+    1.6,
+    1.8,
+    2.0
+  ],
+  "colors": [
+    "#08306B",
+    "#2171B5",
+    "#6BAED6",
+    "#C6DBEF",
+    "#FFFFCC",
+    "#FEE391",
+    "#FEC44F",
+    "#FE9929",
+    "#EC7014",
+    "#CC4C02",
+    "#993404"
+  ]
 }
 }
