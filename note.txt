@@ -404,3 +404,95 @@ Para a variável do Sentinel-3B AOD_550_Merged_OceanLand
 A alteração está baseada no arquivo que você anexou, que já tinha a leitura dos .SEN3.zip, agrupamento das granulações em passagens e o make_grid() de 0,05°.
 
 Importante: o código não faz um gdal_merge dos GeoTIFFs das passagens. Ele faz o overlay antes da criação do GeoTIFF, juntando os pixels de todas as passagens do dia e só então realizando o binning de 0,05°. Isso é o que permite que as diferentes faixas orbitais preencham conjuntamente a América do Sul.
+
+
+
+Download Sentinel-3 SLSTR Level-2 Aerosol Optical Depth (AOD)
+
+Coleção EUMETSAT:
+    EO:EUM:DAT:0416
+
+Satélites:
+    S3A
+    S3B
+    S3A + S3B
+
+Exemplos:
+
+# Somente Sentinel-3A
+python src/download/download_product_sentinel_3.py \
+    S3A_AOD \
+    2024-08-15 \
+    2024-08-25
+
+# Somente Sentinel-3B
+python src/download/download_product_sentinel_3.py \
+    S3B_AOD \
+    2024-08-15 \
+    2024-08-25
+
+# Sentinel-3A + Sentinel-3B
+python src/download/download_product_sentinel_3.py \
+    S3AB_AOD \
+    2024-08-15 \
+    2024-08-25
+
+Observação:
+
+O produto SLSTR L2 AOD é aplicável somente durante o período
+diurno. Portanto, não é necessário aplicar um filtro horário
+artificial no download.
+"""
+
+
+L2/
+├── S3A_AOD/
+│   └── 2024/
+│       ├── S3A_SL_2_AOD____...
+│       ├── S3A_SL_2_AOD____...
+│       └── ...
+│
+└── S3B_AOD/
+    └── 2024/
+        ├── S3B_SL_2_AOD____...
+        ├── S3B_SL_2_AOD____...
+        └── ...
+
+
+
+                 Sentinel-3A
+                      │
+          ┌───────────┼───────────┐
+          │ passagem A1           │
+          │ passagem A2           │
+          └───────────────────────┘
+                     │
+                     │
+                     ▼
+              OVERLAY DO DIA
+                     ▲
+                     │
+          ┌───────────────────────┐
+          │ passagem B1           │
+          │ passagem B2           │
+          └───────────┼───────────┘
+                      │
+                 Sentinel-3B
+
+Ou seja, A e B são tratados separadamente como órbita/passagem, 
+mas os pixels dos dois entram no mesmo grid diário.
+
+
+A EUMETSAT confirma que o produto L2 AOD é produzido tanto para 
+S3A quanto para S3B, e que a coleção EO:EUM:DAT:0416 é a coleção 
+de SLSTR Level-2 AOD.
+
+O downloader novo salva:
+
+/home/jurandir/cipc_data/L2/S3A_AOD/2024/
+
+e
+
+/home/jurandir/cipc_data/L2/S3B_AOD/2024/
+
+
